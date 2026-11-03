@@ -10,6 +10,7 @@
       </a-form-item>
       <a-form-item>
         <a-button type="primary" html-type="submit">搜索</a-button>
+        <a-button style="margin-left: 8px" html-type="button" @click="doReset">重置</a-button>
       </a-form-item>
     </a-form>
     <a-divider />
@@ -170,6 +171,13 @@ const doTableChange = (page: any) => {
 // 获取数据
 const doSearch = () => {
   // 重置页码
+  searchParams.pageNum = 1
+  fetchData()
+}
+
+const doReset = () => {
+  searchParams.userAccount = undefined
+  searchParams.userName = undefined
   searchParams.pageNum = 1
   fetchData()
 }
