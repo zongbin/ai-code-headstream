@@ -1,18 +1,21 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { type MenuProps } from 'ant-design-vue'
+import { type ItemType, type MenuProps } from 'ant-design-vue'
 import { LogoutOutlined } from '@ant-design/icons-vue'
 import { userLogout } from '@/api/userController.ts'
 import { message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import { useRouter } from 'vue-router'
+import router from '@/router/index.ts'
+import type { MenuItemType } from 'ant-design-vue/es/menu/src/hooks/useItems'
+import checkAccess from '@/access/checkAccess.ts'
 
 const loginUserStore = useLoginUserStore()
-const router = useRouter()
+const routerUse = useRouter()
 
 // 监听路由变化，更新当前选中的菜单
 const selectedKeys = ref<String[]>(['/'])
-router.afterEach((to, from, next) => {
+routerUse.afterEach((to, from, next) => {
   {
     selectedKeys.value = [to.path]
   }
@@ -36,18 +39,32 @@ const originItems = [
     title: '关于',
   },
 ]
+type MenuItem = NonNullable<MenuProps['items']>[number]
+
+function menuToRouteItem(menu: MenuItem) {
+  // 排除分割线、分组等没有 key 的项
+  if (!menu || !('key' in menu) || menu.key == null){
+    return { path: '', meta: {} as Record<string, any> }
+  }
+  const path = String(menu.key)
+  const route = router.getRoutes().find((r) => r.path === path)
+
+  if (!route) {
+    console.warn(`[menu] 菜单项 ${path} 未匹配到路由`)
+    return { path, meta: {} as Record<string, any> }
+  }
+  return route
+}
 
 // 过滤菜单项
 const filterMenus = (menus = [] as MenuProps['items']) => {
   return menus?.filter((menu) => {
-    const menuKey = menu?.key as string
-    if (menuKey?.startsWith('/admin')) {
-      const loginUser = loginUserStore.loginUser
-      if (!loginUser || loginUser.userRole !== 'admin') {
-        return false
-      }
-    }
-    return true
+    const item = menuToRouteItem(menu)
+    // if (item.meta?.hideInMenu) {
+    //   return false
+    // }
+    // 根据权限过滤菜单，有权限则返回 true，则保留该菜单
+    return checkAccess(loginUserStore.loginUser, item.meta?.access as string)
   })
 }
 
@@ -152,7 +169,6 @@ const doLogout = async () => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 
 .global-header__extra {
   margin-left: auto;
