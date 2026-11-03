@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { type ItemType, type MenuProps } from 'ant-design-vue'
-import { LogoutOutlined } from '@ant-design/icons-vue'
+import { type MenuProps } from 'ant-design-vue'
+import { LogoutOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import { userLogout } from '@/api/userController.ts'
 import { message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import { useRouter } from 'vue-router'
 import router from '@/router/index.ts'
-import type { MenuItemType } from 'ant-design-vue/es/menu/src/hooks/useItems'
 import checkAccess from '@/access/checkAccess.ts'
 
 const loginUserStore = useLoginUserStore()
@@ -43,7 +42,7 @@ type MenuItem = NonNullable<MenuProps['items']>[number]
 
 function menuToRouteItem(menu: MenuItem) {
   // 排除分割线、分组等没有 key 的项
-  if (!menu || !('key' in menu) || menu.key == null){
+  if (!menu || !('key' in menu) || menu.key == null) {
     return { path: '', meta: {} as Record<string, any> }
   }
   const path = String(menu.key)
@@ -76,6 +75,11 @@ const handleMenuClick: MenuProps['onClick'] = (e) => {
   selectedKeys.value = [key]
   // 菜单项的 key 即路由路径，点击后跳转
   router.push(key)
+}
+
+// 个人设置
+const goToProfile = () => {
+  routerUse.push('/user/profile')
 }
 
 // 用户注销
@@ -125,6 +129,10 @@ const doLogout = async () => {
               </a-space>
               <template #overlay>
                 <a-menu>
+                  <a-menu-item @click="goToProfile">
+                    <SettingOutlined />
+                    个人设置
+                  </a-menu-item>
                   <a-menu-item @click="doLogout">
                     <LogoutOutlined />
                     退出登录

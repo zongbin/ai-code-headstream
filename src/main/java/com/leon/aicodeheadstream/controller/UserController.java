@@ -147,6 +147,29 @@ public class UserController {
     }
 
     /**
+     * 更新当前登录用户的个人信息
+     * <p>
+     * 以登录态中的用户为准，忽略前端传入的任何标识，仅允许修改昵称、头像、简介。
+     *
+     * @param userProfileUpdateRequest 个人信息
+     * @param request                   请求
+     * @return 是否更新成功
+     */
+    @PostMapping("/update/my")
+    public BaseResponse<Boolean> updateMyUser(@RequestBody UserProfileUpdateRequest userProfileUpdateRequest,
+                                               HttpServletRequest request) {
+        ThrowUtils.throwIf(userProfileUpdateRequest == null, ErrorCode.PARAMS_ERROR);
+        // 未登录会抛出 NOT_LOGIN_ERROR
+        User loginUser = userService.getLoginUser(request);
+        User user = new User();
+        BeanUtil.copyProperties(userProfileUpdateRequest, user);
+        user.setId(loginUser.getId());
+        boolean result = userService.updateById(user);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        return ResultUtils.success(true);
+    }
+
+    /**
      * 分页获取用户封装列表（仅管理员）
      *
      * @param userQueryRequest 查询请求参数
