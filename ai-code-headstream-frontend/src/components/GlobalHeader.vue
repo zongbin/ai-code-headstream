@@ -1,153 +1,134 @@
 <script setup lang="ts">
-import { computed, h, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { MenuOutlined, UserOutlined } from '@ant-design/icons-vue'
-import { Grid, type ItemType } from 'ant-design-vue'
-import type { MenuItemType, SubMenuType } from 'ant-design-vue/es/menu/src/hooks/useItems'
-import { menuItems, type MenuItemConfig } from '../layouts/menu.config.ts'
-import { siteConfig } from '../layouts/site.config.ts'
+import { computed, ref } from 'vue'
+import { type MenuProps } from 'ant-design-vue'
+import { LogoutOutlined } from '@ant-design/icons-vue'
+import { userLogout } from '@/api/userController.ts'
+import { message } from 'ant-design-vue'
+import { useLoginUserStore } from '@/stores/loginUser.ts'
+import { useRouter } from 'vue-router'
 
-/** 站点标题 */
-const siteTitle = siteConfig.title
-
-/** Logo 图片地址 */
-const logoSrc = siteConfig.logo
-
-const route = useRoute()
+const loginUserStore = useLoginUserStore()
 const router = useRouter()
 
-/** 当前登录用户信息（暂时用 null 表示未登录，后续接入真实用户信息） */
-const user = ref<{ name: string; avatar?: string } | null>(null)
-
-const screens = Grid.useBreakpoint()
-const isMobile = computed(() => screens.value.md === false)
-
-/** 移动端抽屉菜单展开状态 */
-const drawerOpen = ref(false)
-
-/** 依据当前路由高亮菜单项 */
-const selectedKeys = computed(() => {
-  const path = route.path
-  const matched = menuItems.filter((item) => item.path).find((item) => item.path === path)
-  return matched ? [matched.key] : []
+// 监听路由变化，更新当前选中的菜单
+const selectedKeys = ref<String[]>(['/'])
+router.afterEach((to, from, next) => {
+  {
+    selectedKeys.value = [to.path]
+  }
 })
 
-/** 转换为 ant-design-vue Menu 所需的 items 结构 */
-const flatItems = computed<ItemType[]>(() => menuItems.map(toMenuItem))
+// 菜单配置项
+const originItems = [
+  {
+    key: '/',
+    label: '主页',
+    title: '主页',
+  },
+  {
+    key: '/admin/userManage',
+    label: '用户管理',
+    title: '用户管理',
+  },
+  {
+    key: '/about',
+    label: '关于',
+    title: '关于',
+  },
+]
 
-function toMenuItem(item: MenuItemConfig): ItemType {
-  if (item.children?.length) {
-    const subMenu: SubMenuType = {
-      key: item.key,
-      label: item.title,
-      children: item.children.map(toMenuItem),
+// 过滤菜单项
+const filterMenus = (menus = [] as MenuProps['items']) => {
+  return menus?.filter((menu) => {
+    const menuKey = menu?.key as string
+    if (menuKey?.startsWith('/admin')) {
+      const loginUser = loginUserStore.loginUser
+      if (!loginUser || loginUser.userRole !== 'admin') {
+        return false
+      }
     }
-    if (item.icon) {
-      subMenu.icon = h(item.icon)
-    }
-    return subMenu
-  }
-
-  const menuItem: MenuItemType = {
-    key: item.key,
-    label: item.title,
-  }
-  if (item.icon) {
-    menuItem.icon = h(item.icon)
-  }
-  return menuItem
+    return true
+  })
 }
 
-function handleMenuClick(info: { key: string | number }) {
-  const key = String(info.key)
-  const item = findItem(menuItems, key)
-  if (item?.path) {
-    router.push(item.path)
-  }
-  drawerOpen.value = false
+// 展示在菜单的路由数组
+const menuItems = computed<MenuProps['items']>(() => filterMenus(originItems))
+
+const handleMenuClick: MenuProps['onClick'] = (e) => {
+  const key = e.key as string
+  selectedKeys.value = [key]
+  // 菜单项的 key 即路由路径，点击后跳转
+  router.push(key)
 }
 
-function findItem(items: MenuItemConfig[], key: string): MenuItemConfig | undefined {
-  for (const item of items) {
-    if (item.key === key) return item
-    if (item.children) {
-      const found = findItem(item.children, key)
-      if (found) return found
-    }
+// 用户注销
+const doLogout = async () => {
+  const res = await userLogout()
+  if (res.data.code === 0) {
+    loginUserStore.setLoginUser({
+      userName: '未登录',
+    })
+    message.success('退出登录成功')
+    await router.push('/user/login')
+  } else {
+    message.error('退出登录失败，' + res.data.message)
   }
-  return undefined
 }
 </script>
 
 <template>
   <a-layout-header class="global-header">
-    <div class="global-header__inner">
+    <a-row :wrap="false">
       <!-- 左侧：Logo + 站点标题 -->
-      <div class="global-header__brand">
-        <img class="global-header__logo" :src="logoSrc" :alt="siteTitle" />
-        <span class="global-header__title">{{ siteTitle }}</span>
-      </div>
+      <a-col flex="300px">
+        <RouterLink to="/">
+          <div class="global-header__brand">
+            <img class="global-header__logo" src="@/assets/logo.png" alt="logo" />
+            <span class="global-header__title">AI 零代码应用生成平台</span>
+          </div>
+        </RouterLink>
+      </a-col>
 
-      <!-- 中间：菜单（桌面端） -->
-      <nav v-if="!isMobile" class="global-header__nav">
+      <!-- 中间：菜单 -->
+      <a-col flex="auto">
         <a-menu
           mode="horizontal"
-          :items="flatItems"
+          :items="menuItems"
           :selected-keys="selectedKeys"
           @click="handleMenuClick"
         />
-      </nav>
-
-      <div class="global-header__extra">
-        <!-- 移动端菜单按钮 -->
-        <a-button
-          v-if="isMobile"
-          type="text"
-          class="global-header__menu-btn"
-          @click="drawerOpen = true"
-        >
-          <template #icon><MenuOutlined /></template>
-        </a-button>
-
-        <!-- 右侧：登录用户信息 / 登录按钮 -->
-        <div v-if="user" class="global-header__user">
-          <a-avatar :src="user.avatar" :size="28">
-            <template #icon><UserOutlined /></template>
-          </a-avatar>
-          <span class="global-header__nickname">{{ user.name }}</span>
+      </a-col>
+      <a-col>
+        <div class="global-header__extra">
+          <div v-if="loginUserStore.loginUser.id">
+            <a-dropdown>
+              <a-space>
+                <a-avatar :src="loginUserStore.loginUser.userAvatar" />
+                {{ loginUserStore.loginUser.userName ?? '无名' }}
+              </a-space>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item @click="doLogout">
+                    <LogoutOutlined />
+                    退出登录
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </div>
+          <div v-else>
+            <a-button type="primary" href="/user/login">登录</a-button>
+          </div>
         </div>
-        <a-button v-else type="primary" size="small">登录</a-button>
-      </div>
-    </div>
-
-    <!-- 移动端：抽屉式菜单 -->
-    <a-drawer v-model:open="drawerOpen" placement="left" :width="240" :closable="true">
-      <template #title>{{ siteTitle }}</template>
-      <a-menu
-        mode="inline"
-        :items="flatItems"
-        :selected-keys="selectedKeys"
-        @click="handleMenuClick"
-      />
-    </a-drawer>
+      </a-col>
+    </a-row>
   </a-layout-header>
 </template>
 
 <style scoped>
 .global-header {
-  padding: 0;
-  height: 64px;
-  line-height: normal;
-  background-color: #fff;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.global-header__inner {
-  display: flex;
-  align-items: center;
-  height: 64px;
   padding: 0 24px;
-  gap: 16px;
+  background-color: #fff;
 }
 
 .global-header__brand {
@@ -172,40 +153,11 @@ function findItem(items: MenuItemConfig[], key: string): MenuItemConfig | undefi
   text-overflow: ellipsis;
 }
 
-.global-header__nav {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-}
 
 .global-header__extra {
   margin-left: auto;
   display: flex;
   align-items: center;
   flex-shrink: 0;
-}
-
-.global-header__user {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.global-header__nickname {
-  color: rgba(0, 0, 0, 0.88);
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-@media (max-width: 768px) {
-  .global-header__inner {
-    padding: 0 12px;
-    gap: 8px;
-  }
-
-  .global-header__title {
-    font-size: 16px;
-  }
 }
 </style>
