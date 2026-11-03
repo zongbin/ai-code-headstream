@@ -49,6 +49,9 @@ public class CodeFileSaver {
      * 写入单个文件
      */
     private static void writeToFile(String dirPath, String filename, String content) {
+        if(StrUtil.isBlank(content)){
+            return;
+        }
         String filePath = dirPath + File.separator + filename;
         FileUtil.writeString(content, filePath, StandardCharsets.UTF_8);
     }
