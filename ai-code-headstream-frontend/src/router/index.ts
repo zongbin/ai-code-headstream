@@ -3,6 +3,7 @@ import HomePage from '@/pages/HomePage.vue'
 import UserLoginPage from '@/pages/user/UserLoginPage.vue'
 import UserRegisterPage from '@/pages/user/UserRegisterPage.vue'
 import UserManagePage from '@/pages/admin/UserManagePage.vue'
+import UserProfilePage from '@/pages/user/UserProfilePage.vue'
 import AccessEnum from '@/access/accessEnum.ts'
 import NoAuthPage from '@/pages/NoAuthPage.vue'
 
@@ -30,6 +31,14 @@ const router = createRouter({
       component: UserManagePage,
       meta: {
         access: AccessEnum.ADMIN,
+      },
+    },
+    {
+      path: '/user/profile',
+      name: '个人设置',
+      component: UserProfilePage,
+      meta: {
+        access: AccessEnum.USER,
       },
     },
     {
