@@ -1,4 +1,4 @@
-package com.leon.aicodeheadstream.model.dto;
+package com.leon.aicodeheadstream.model.dto.user;
 
 import lombok.Data;
 

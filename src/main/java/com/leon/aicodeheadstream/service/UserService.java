@@ -1,6 +1,6 @@
 package com.leon.aicodeheadstream.service;
 
-import com.leon.aicodeheadstream.model.dto.UserQueryRequest;
+import com.leon.aicodeheadstream.model.dto.user.UserQueryRequest;
 import com.leon.aicodeheadstream.model.vo.LoginUserVO;
 import com.leon.aicodeheadstream.model.vo.UserVO;
 import com.mybatisflex.core.query.QueryWrapper;

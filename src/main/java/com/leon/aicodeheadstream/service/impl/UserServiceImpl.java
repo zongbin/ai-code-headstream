@@ -5,7 +5,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.leon.aicodeheadstream.exception.BusinessException;
 import com.leon.aicodeheadstream.exception.ErrorCode;
-import com.leon.aicodeheadstream.model.dto.UserQueryRequest;
+import com.leon.aicodeheadstream.model.dto.user.UserQueryRequest;
 import com.leon.aicodeheadstream.model.enums.UserRoleEnum;
 import com.leon.aicodeheadstream.model.vo.LoginUserVO;
 import com.leon.aicodeheadstream.model.vo.UserVO;
