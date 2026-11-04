@@ -13,10 +13,10 @@ public class CodeFileSaverExecutor {
     private static final MultiFileCodeFileSaverTemplate MULTI_FILE_CODE_FILE_SAVER_TEMPLATE = new MultiFileCodeFileSaverTemplate();
     private static final HtmlCodeFileSaverTemplate HTML_CODE_FILE_SAVER_TEMPLATE = new HtmlCodeFileSaverTemplate();
 
-    public static File execute(Object result, CodeGenTypeEnum codeGenTypeEnum) {
+    public static File execute(Object result, CodeGenTypeEnum codeGenTypeEnum, Long appId) {
         return switch (codeGenTypeEnum) {
-            case MULTI_FILE -> MULTI_FILE_CODE_FILE_SAVER_TEMPLATE.save((MultiFileCodeResult) result);
-            case HTML -> HTML_CODE_FILE_SAVER_TEMPLATE.save((HtmlCodeResult) result);
+            case MULTI_FILE -> MULTI_FILE_CODE_FILE_SAVER_TEMPLATE.save((MultiFileCodeResult) result, appId);
+            case HTML -> HTML_CODE_FILE_SAVER_TEMPLATE.save((HtmlCodeResult) result, appId);
             default ->
                     throw new BusinessException(ErrorCode.SYSTEM_ERROR, "Unknown codeGenTypeEnum: " + codeGenTypeEnum);
         };

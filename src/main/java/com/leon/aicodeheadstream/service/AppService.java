@@ -9,6 +9,7 @@ import com.leon.aicodeheadstream.model.vo.AppVO;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
 import com.leon.aicodeheadstream.model.entity.App;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -19,6 +20,25 @@ import java.util.List;
  */
 public interface AppService extends IService<App> {
 
+
+    /**
+     * 通过聊天交互生成代码（流式响应）
+     *
+     * @param appId     应用 ID，指定要生成代码的目标应用
+     * @param message   用户发送的聊天消息，用于引导代码生成
+     * @param loginUser 当前登录用户
+     * @return 响应式流，流式返回生成的代码片段
+     */
+    Flux<String> chatToGenCode(Long appId, String message, User loginUser);
+
+    /**
+     * 部署应用
+     *
+     * @param appId     应用 ID
+     * @param loginUser 当前登录用户
+     * @return 是否成功
+     */
+    String deployApp(Long appId, User loginUser);
     /**
      * 创建应用
      *
