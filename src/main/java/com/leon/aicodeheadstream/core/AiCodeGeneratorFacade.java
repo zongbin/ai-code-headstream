@@ -88,8 +88,10 @@ public class AiCodeGeneratorFacade {
                     // 实时收集代码片段
                     codeBuilder.append(chunk);
                 })
-                .doOnComplete(() -> {
-                    // 流式返回完成后保存代码
+                // 流结束后再解析并保存代码。
+                // 这里用 defer + thenMany（而不是 doOnComplete），是为了让保存失败以「流错误」的形式抛出，
+                // 这样错误才能被上游感知并通知到前端，而不是仅仅打印一行日志。
+                .thenMany(Flux.defer(() -> {
                     try {
                         String completeCode = codeBuilder.toString();
                         Object parsedResult = CodeParserExecutor.execute(completeCode, codeGenTypeEnum);
@@ -98,8 +100,11 @@ public class AiCodeGeneratorFacade {
                         log.info("保存成功，路径为：" + savedDir.getAbsolutePath());
                     } catch (Exception e) {
                         log.error("保存失败: {}", e.getMessage(), e);
+                        // 转换为业务异常，携带可读的错误信息，便于前端展示
+                        throw new BusinessException(ErrorCode.SYSTEM_ERROR, "代码保存失败：" + e.getMessage());
                     }
-                });
+                    return Flux.empty();
+                }));
     }
 
 

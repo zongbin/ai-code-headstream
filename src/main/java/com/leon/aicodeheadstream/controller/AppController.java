@@ -21,6 +21,7 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
@@ -36,7 +37,33 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/app")
+@Slf4j
 public class AppController {
+
+    /**
+     * SSE 事件类型字段
+     */
+    private static final String EVENT_TYPE = "t";
+
+    /**
+     * SSE 事件数据字段
+     */
+    private static final String EVENT_DATA = "d";
+
+    /**
+     * SSE 事件类型：正常内容
+     */
+    private static final String EVENT_TYPE_CONTENT = "content";
+
+    /**
+     * SSE 事件类型：错误
+     */
+    private static final String EVENT_TYPE_ERROR = "error";
+
+    /**
+     * 错误信息最大长度
+     */
+    private static final int MAX_ERROR_MESSAGE_LENGTH = 500;
 
     @Resource
     private AppService appService;
@@ -57,23 +84,57 @@ public class AppController {
     public Flux<ServerSentEvent<String>> chatToGenCode(@RequestParam Long appId,
                                                        @RequestParam String message,
                                                        HttpServletRequest request) {
-        // 参数校验
-        ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
-        ThrowUtils.throwIf(StrUtil.isBlank(message), ErrorCode.PARAMS_ERROR, "用户消息不能为空");
-        // 获取当前登录用户
-        User loginUser = userService.getLoginUser(request);
-        // 调用服务生成代码（流式）
-        Flux<String> contentFlux = appService.chatToGenCode(appId, message, loginUser);
+        Flux<String> contentFlux;
+        try {
+            // 参数校验
+            ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
+            ThrowUtils.throwIf(StrUtil.isBlank(message), ErrorCode.PARAMS_ERROR, "用户消息不能为空");
+            // 获取当前登录用户
+            User loginUser = userService.getLoginUser(request);
+            // 调用服务生成代码（流式）
+            contentFlux = appService.chatToGenCode(appId, message, loginUser);
+        } catch (Exception e) {
+            // 流开始前就出错（如未登录、无权限、应用不存在），响应尚未提交，
+            // 直接以 SSE 的方式把错误信息推给前端，保证前端能展示具体原因
+            log.error("生成代码失败", e);
+            return Flux.just(buildErrorEvent(e));
+        }
         // 转换为 ServerSentEvent 格式
         return contentFlux
-                .map(chunk -> {
-                    // 将内容包装成JSON对象
-                    Map<String, String> wrapper = Map.of("d", chunk);
-                    String jsonData = JSONUtil.toJsonStr(wrapper);
-                    return ServerSentEvent.<String>builder()
-                            .data(jsonData)
-                            .build();
+                .map(chunk -> ServerSentEvent.<String>builder()
+                        .data(JSONUtil.toJsonStr(Map.of(EVENT_TYPE, EVENT_TYPE_CONTENT, EVENT_DATA, chunk)))
+                        .build())
+                // 流式过程中出错（AI 调用失败、代码解析/保存失败等），同样以 SSE 事件通知前端
+                .onErrorResume(e -> {
+                    log.error("生成代码失败", e);
+                    return Flux.just(buildErrorEvent(e));
                 });
+    }
+
+    /**
+     * 构造错误事件
+     *
+     * @param e 异常（onErrorResume 回调里拿到的是 Throwable，所以这里用 Throwable 接收）
+     * @return SSE 错误事件
+     */
+    private ServerSentEvent<String> buildErrorEvent(Throwable e) {
+        String errorMessage = ErrorCode.SYSTEM_ERROR.getMessage();
+        if (e instanceof BusinessException be && StrUtil.isNotBlank(be.getMessage())) {
+            errorMessage = be.getMessage();
+        } else if (e != null && StrUtil.isNotBlank(e.getMessage())) {
+            errorMessage = e.getMessage();
+        }
+        // 截断过长的异常信息，避免刷屏
+        if (errorMessage.length() > MAX_ERROR_MESSAGE_LENGTH) {
+            errorMessage = errorMessage.substring(0, MAX_ERROR_MESSAGE_LENGTH) + "...";
+        }
+        Map<String, String> wrapper = Map.of(
+                EVENT_TYPE, EVENT_TYPE_ERROR,
+                EVENT_DATA, errorMessage
+        );
+        return ServerSentEvent.<String>builder()
+                .data(JSONUtil.toJsonStr(wrapper))
+                .build();
     }
 
 

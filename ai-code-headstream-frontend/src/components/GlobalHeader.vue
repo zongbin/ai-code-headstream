@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { type MenuProps } from 'ant-design-vue'
 import { LogoutOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import { userLogout } from '@/api/userController.ts'
@@ -31,6 +31,11 @@ const originItems = [
     key: '/admin/userManage',
     label: '用户管理',
     title: '用户管理',
+  },
+  {
+    key: '/admin/appManage',
+    label: '应用管理',
+    title: '应用管理',
   },
   {
     key: '/about',
@@ -82,6 +87,39 @@ const goToProfile = () => {
   routerUse.push('/user/profile')
 }
 
+// 用户头像地址，没有头像（或加载失败）时展示橙色默认头像
+const avatarFailed = ref(false)
+
+const userAvatar = computed(() => (loginUserStore.loginUser.userAvatar ?? '').trim())
+
+// 是否展示真实头像图片
+const showAvatarImage = computed(() => !!userAvatar.value && !avatarFailed.value)
+
+const avatarSrc = computed(() => (showAvatarImage.value ? userAvatar.value : undefined))
+
+// 有图片时用默认底色，没有图片时用橙色底色
+const avatarStyle = computed(() =>
+  showAvatarImage.value
+    ? { backgroundColor: '#f0f0f0' }
+    : { backgroundColor: '#fa8c16', color: '#fff' },
+)
+
+// 默认头像上展示的用户名首字母
+const avatarInitial = computed(() => (loginUserStore.loginUser.userName ?? 'U').slice(0, 1))
+
+// 头像地址变化时重置加载状态
+watch(
+  () => loginUserStore.loginUser.userAvatar,
+  () => {
+    avatarFailed.value = false
+  },
+)
+
+// 头像加载失败时回退到默认头像
+const handleAvatarLoadError = () => {
+  avatarFailed.value = true
+}
+
 // 用户注销
 const doLogout = async () => {
   const res = await userLogout()
@@ -124,7 +162,13 @@ const doLogout = async () => {
           <div v-if="loginUserStore.loginUser.id">
             <a-dropdown>
               <a-space>
-                <a-avatar :src="loginUserStore.loginUser.userAvatar" />
+                <a-avatar
+                  :src="avatarSrc"
+                  :style="avatarStyle"
+                  :load-error="handleAvatarLoadError"
+                >
+                  {{ avatarInitial }}
+                </a-avatar>
                 {{ loginUserStore.loginUser.userName ?? '无名' }}
               </a-space>
               <template #overlay>
@@ -154,6 +198,7 @@ const doLogout = async () => {
 .global-header {
   padding: 0 24px;
   background-color: #fff;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .global-header__brand {

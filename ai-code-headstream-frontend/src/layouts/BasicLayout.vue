@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
+import { computed } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 import GlobalHeader from '@/components/GlobalHeader.vue'
 import GlobalFooter from '@/components/GlobalFooter.vue'
+
+const route = useRoute()
+// 主页使用灰色背景
+const isHome = computed(() => route.path === '/')
 </script>
 
 <template>
-  <a-layout class="basic-layout">
+  <a-layout class="basic-layout" :class="{ 'basic-layout--home': isHome }">
     <!-- 顶部导航栏 -->
     <global-header />
 
@@ -28,6 +33,17 @@ import GlobalFooter from '@/components/GlobalFooter.vue'
 <style scoped>
 .basic-layout {
   min-height: 100vh;
+}
+
+/* 主页：灰色背景，导航栏保持组件自身的白色 */
+.basic-layout--home {
+  background:
+    radial-gradient(900px 420px at 50% -8%, rgba(0, 0, 0, 0.04) 0%, transparent 62%),
+    linear-gradient(180deg, #f7f8fa 0%, #e6e8eb 100%);
+}
+
+.basic-layout--home .basic-layout__content {
+  background-color: transparent;
 }
 
 .basic-layout__content {

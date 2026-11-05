@@ -3,6 +3,9 @@ import HomePage from '@/pages/HomePage.vue'
 import UserLoginPage from '@/pages/user/UserLoginPage.vue'
 import UserRegisterPage from '@/pages/user/UserRegisterPage.vue'
 import UserManagePage from '@/pages/admin/UserManagePage.vue'
+import AppManagePage from '@/pages/admin/AppManagePage.vue'
+import AppChatPage from '@/pages/app/AppChatPage.vue'
+import AppEditPage from '@/pages/app/AppEditPage.vue'
 import UserProfilePage from '@/pages/user/UserProfilePage.vue'
 import AccessEnum from '@/access/accessEnum.ts'
 import NoAuthPage from '@/pages/NoAuthPage.vue'
@@ -44,7 +47,31 @@ const router = createRouter({
     {
       path: '/noAuth',
       name: '无权限页面',
-      component: NoAuthPage
+      component: NoAuthPage,
+    },
+    {
+      path: '/admin/appManage',
+      name: '应用管理',
+      component: AppManagePage,
+      meta: {
+        access: AccessEnum.ADMIN,
+      },
+    },
+    {
+      path: '/app/chat/:id',
+      name: '应用生成',
+      component: AppChatPage,
+      meta: {
+        access: AccessEnum.USER,
+      },
+    },
+    {
+      path: '/app/edit/:id',
+      name: '应用编辑',
+      component: AppEditPage,
+      meta: {
+        access: AccessEnum.USER,
+      },
     },
     {
       path: '/about',
