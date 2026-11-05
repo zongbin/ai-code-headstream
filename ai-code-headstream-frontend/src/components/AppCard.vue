@@ -87,7 +87,10 @@ const emit = defineEmits<{
         {{ app.user?.userName?.slice(0, 1) ?? 'U' }}
       </a-avatar>
       <div class="app-card__info">
-        <div class="app-card__name">{{ app.appName }}</div>
+        <div class="app-card__name-row">
+          <div class="app-card__name">{{ app.appName }}</div>
+          <a-tag v-if="app.label" color="blue" class="app-card__label">{{ app.label }}</a-tag>
+        </div>
         <div class="app-card__meta">
           <span class="app-card__author-name">{{ app.user?.userName ?? authorFallback }}</span>
           <span v-if="app.createTime" class="app-card__time">
@@ -276,13 +279,27 @@ const emit = defineEmits<{
   min-width: 0;
 }
 
+.app-card__name-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
 .app-card__name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   font-size: 16px;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.88);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.app-card__label {
+  flex-shrink: 0;
+  margin-right: 0;
 }
 
 .app-card__meta {

@@ -39,6 +39,11 @@ public class AppVO implements Serializable {
     private String codeGenType;
 
     /**
+     * 应用标签（枚举）：工具/网站/数据分析/活动页面/管理平台/用户应用/个人管理/游戏
+     */
+    private String label;
+
+    /**
      * 部署标识
      */
     private String deployKey;

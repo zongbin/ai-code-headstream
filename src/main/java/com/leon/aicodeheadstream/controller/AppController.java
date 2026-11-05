@@ -252,11 +252,14 @@ public class AppController {
         appQueryRequest.setDeployKey(null);
         appQueryRequest.setPriority(null);
         appQueryRequest.setVisible(null);
+        appQueryRequest.setLabel(null);
         return ResultUtils.success(getAppVOPage(appQueryRequest, pageNum, pageSize));
     }
 
     /**
      * 分页查询案例广场的应用列表（所有用户公开的应用，按优先级从大到小排序，每页最多 20 个）
+     *
+     * <p>支持按标签（label）筛选，不传或传空表示查询全部标签。</p>
      *
      * @param appQueryRequest 查询请求
      * @return 案例广场应用分页

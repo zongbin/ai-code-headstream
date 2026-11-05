@@ -5,7 +5,7 @@ import type { ApiResponse, PageResult } from '@/types/api.ts'
 /**
  * 应用列表（首页「我的作品」「精选案例」通用）
  *
- * 封装「列表 + 关键字搜索 + 分页」的通用逻辑，
+ * 封装「列表 + 标签筛选 + 分页」的通用逻辑，
  * 传入不同的请求函数即可复用于不同的应用列表。
  */
 export function useAppList(
@@ -15,8 +15,8 @@ export function useAppList(
   // 列表数据
   const apps = ref<API.AppVO[]>([])
   const total = ref(0)
-  // 搜索关键字
-  const searchName = ref('')
+  // 标签筛选（空字符串表示全部）
+  const label = ref('')
   // 分页
   const pageNum = ref(1)
   const pageSize = options.pageSize ?? 6
@@ -29,7 +29,7 @@ export function useAppList(
       const res = await fetcher({
         pageNum: pageNum.value,
         pageSize,
-        appName: searchName.value || undefined,
+        label: label.value || undefined,
       })
       if (res.data.code === 0 && res.data.data) {
         apps.value = res.data.data.records ?? []
@@ -43,9 +43,10 @@ export function useAppList(
   }
 
   /**
-   * 搜索（回到第一页）
+   * 切换标签筛选（回到第一页）
    */
-  const search = () => {
+  const changeLabel = (value: string) => {
+    label.value = value
     pageNum.value = 1
     fetchList()
   }
@@ -71,11 +72,11 @@ export function useAppList(
   return {
     apps,
     total,
-    searchName,
+    label,
     pageNum,
     pageSize,
     fetchList,
-    search,
+    changeLabel,
     changePage,
     refreshAfterDelete,
   }

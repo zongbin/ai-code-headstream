@@ -11,6 +11,7 @@ import {
 } from '@/api/appController.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import {
+  APP_LABELS,
   APP_VISIBLE_PRIVATE,
   APP_VISIBLE_PUBLIC,
   formatDateTime,
@@ -44,6 +45,8 @@ const form = reactive({
   cover: '',
   priority: 0,
   visible: APP_VISIBLE_PRIVATE,
+  // 应用标签，空字符串表示暂无标签
+  label: '',
 })
 
 // 表单校验规则
@@ -77,6 +80,7 @@ const loadAppInfo = async () => {
       form.cover = res.data.data.cover ?? ''
       form.priority = res.data.data.priority ?? 0
       form.visible = res.data.data.visible ?? APP_VISIBLE_PRIVATE
+      form.label = res.data.data.label ?? ''
     } else {
       message.error('获取应用信息失败，' + res.data.message)
     }
@@ -115,11 +119,13 @@ const doSubmit = async () => {
           cover: form.cover,
           priority: form.priority,
           visible: form.visible,
+          label: form.label,
         })
       : await updateApp({
           id: appId.value as unknown as number,
           appName: form.appName,
           visible: form.visible,
+          label: form.label,
         })
     if (res.data.code === 0) {
       message.success('保存成功')
@@ -168,6 +174,19 @@ const doCancel = () => {
             :width="120"
             style="margin-top: 8px; border-radius: 6px"
           />
+        </a-form-item>
+        <a-form-item label="应用标签" name="label">
+          <a-select
+            v-model:value="form.label"
+            placeholder="请选择应用标签"
+            style="max-width: 240px"
+          >
+            <a-select-option value="">无标签</a-select-option>
+            <a-select-option v-for="label in APP_LABELS" :key="label" :value="label">
+              {{ label }}
+            </a-select-option>
+          </a-select>
+          <div class="tip">标签用于案例广场分类展示，选择「无标签」可清除标签</div>
         </a-form-item>
         <a-form-item label="可见状态" name="visible">
           <a-radio-group v-model:value="form.visible">

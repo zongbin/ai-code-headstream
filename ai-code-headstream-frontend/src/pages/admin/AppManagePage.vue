@@ -55,6 +55,18 @@
           <a-select-option :value="APP_VISIBLE_PRIVATE">私有</a-select-option>
         </a-select>
       </a-form-item>
+      <a-form-item label="应用标签">
+        <a-select
+          v-model:value="searchParams.label"
+          placeholder="应用标签"
+          style="width: 140px"
+          allow-clear
+        >
+          <a-select-option v-for="label in APP_LABELS" :key="label" :value="label">
+            {{ label }}
+          </a-select-option>
+        </a-select>
+      </a-form-item>
     </search-form>
     <a-divider />
     <a-table
@@ -89,6 +101,10 @@
           <a-tag v-if="isPinnedApp(record)" color="red">置顶</a-tag>
           <a-tag v-else-if="isGoodApp(record)" color="gold">精选</a-tag>
           <span v-else>{{ record.priority ?? 0 }}</span>
+        </template>
+        <template v-else-if="column.dataIndex === 'label'">
+          <a-tag v-if="record.label" color="blue">{{ record.label }}</a-tag>
+          <span v-else>-</span>
         </template>
         <template v-else-if="column.dataIndex === 'user'">
           <span>{{ record.user?.userName ?? record.userId ?? '-' }}</span>
@@ -132,6 +148,7 @@ import {
   updateAppByAdmin,
 } from '@/api/appController.ts'
 import {
+  APP_LABELS,
   APP_VISIBLE_PRIVATE,
   APP_VISIBLE_PUBLIC,
   DEFAULT_APP_PRIORITY,
@@ -194,6 +211,11 @@ const columns = [
     width: 100,
   },
   {
+    title: '标签',
+    dataIndex: 'label',
+    width: 100,
+  },
+  {
     title: '创建者',
     dataIndex: 'user',
     width: 140,
@@ -229,6 +251,7 @@ const {
     deployKey: undefined,
     priority: undefined,
     visible: undefined,
+    label: undefined,
   },
   { errorTip: '获取应用列表失败' },
 )

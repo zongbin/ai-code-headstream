@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppCard from '@/components/AppCard.vue'
+import type { AppLabelOption } from '@/utils/app.ts'
 
 const props = withDefaults(
   defineProps<{
@@ -19,24 +20,27 @@ const props = withDefaults(
     tag?: string
     /** 是否展示更多操作菜单（编辑、删除） */
     editable?: boolean
+    /** 标签筛选项（为空数组时不展示标签筛选） */
+    labelOptions?: AppLabelOption[]
   }>(),
   {
     authorFallback: '',
     tag: '',
     editable: false,
+    labelOptions: () => [],
   },
 )
 
-/** 搜索关键字（双向绑定） */
-const searchName = defineModel<string>('searchName', { required: true })
 /** 当前页码（双向绑定） */
 const pageNum = defineModel<number>('pageNum', { required: true })
+/** 当前选中的标签（双向绑定，空字符串表示全部） */
+const label = defineModel<string>('label', { required: false, default: '' })
 
 const emit = defineEmits<{
-  /** 触发搜索 */
-  (e: 'search'): void
   /** 翻页 */
   (e: 'page-change', page: number): void
+  /** 切换标签筛选 */
+  (e: 'label-change', label: string): void
   /** 查看对话 */
   (e: 'view-chat', app: API.AppVO): void
   /** 查看部署后的作品 */
@@ -54,19 +58,34 @@ const onPageChange = (page: number) => {
   pageNum.value = page
   emit('page-change', page)
 }
+
+/**
+ * 切换标签：同步选中项并通知父级重新请求
+ */
+const onLabelChange = (value: string) => {
+  label.value = value
+  emit('label-change', value)
+}
 </script>
 
 <template>
   <section class="app-section">
     <div class="app-section__header">
       <h2 class="app-section__title">{{ title }}</h2>
-      <a-input-search
-        v-model:value="searchName"
-        class="app-section__search"
-        placeholder="搜索应用名称"
-        allow-clear
-        @search="emit('search')"
-      />
+    </div>
+
+    <!-- 标签筛选（案例广场按标签分类展示） -->
+    <div v-if="props.labelOptions.length > 0" class="app-section__labels">
+      <button
+        v-for="option in props.labelOptions"
+        :key="option.value || 'all'"
+        type="button"
+        class="app-section__label"
+        :class="{ 'app-section__label--active': label === option.value }"
+        @click="onLabelChange(option.value)"
+      >
+        {{ option.text }}
+      </button>
     </div>
 
     <a-empty v-if="props.apps.length === 0" :description="emptyText" />
@@ -101,7 +120,7 @@ const onPageChange = (page: number) => {
 .app-section {
   position: relative;
   z-index: 1;
-  max-width: 1240px;
+  max-width: 1600px;
   margin: 24px auto 0;
   padding: 24px;
   background: #fff;
@@ -125,13 +144,48 @@ const onPageChange = (page: number) => {
   color: rgba(0, 0, 0, 0.88);
 }
 
-.app-section__search {
-  max-width: 260px;
+.app-section__labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
 }
 
+.app-section__label {
+  padding: 4px 14px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.65);
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 16px;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.app-section__label:hover {
+  color: #1677ff;
+  border-color: #91caff;
+}
+
+.app-section__label--active {
+  color: #fff;
+  background: #1677ff;
+  border-color: #1677ff;
+}
+
+.app-section__label--active:hover {
+  color: #fff;
+  background: #4096ff;
+  border-color: #4096ff;
+}
+
+/* 卡片一行显示 4 个，卡片宽度自适应容器 */
 .app-section__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 20px;
 }
 
@@ -141,9 +195,25 @@ const onPageChange = (page: number) => {
   margin-top: 24px;
 }
 
+@media (max-width: 1280px) {
+  .app-section__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-section__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
   .app-section {
     padding: 16px;
+  }
+
+  .app-section__grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

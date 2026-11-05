@@ -28,6 +28,11 @@ public interface AppConstant {
     Integer APP_VISIBLE_PUBLIC = 1;
 
     /**
+     * 默认应用标签（应用创建时为空，用户可自行设置标签）
+     */
+    String DEFAULT_APP_LABEL = "";
+
+    /**
      * 用户分页查询每页最大数量
      */
     int MAX_PAGE_SIZE = 20;

@@ -86,6 +86,36 @@ export function getAppVisibleText(visible?: number) {
 }
 
 /**
+ * 应用标签枚举值，与后端 AppLabelEnum 保持一致。
+ */
+export const APP_LABELS = [
+  '工具',
+  '网站',
+  '数据分析',
+  '活动页面',
+  '管理平台',
+  '用户应用',
+  '个人管理',
+  '游戏',
+] as const
+
+/** 标签筛选项 */
+export interface AppLabelOption {
+  /** 传给后端的标签值，空字符串表示全部 */
+  value: string
+  /** 页面展示文案 */
+  text: string
+}
+
+/**
+ * 标签筛选项（首项为「全部」，展示所有内容）
+ */
+export const APP_LABEL_OPTIONS: AppLabelOption[] = [
+  { value: '', text: '全部' },
+  ...APP_LABELS.map((label) => ({ value: label, text: label })),
+]
+
+/**
  * 解析后端时间。兼容 "yyyy-mm-dd HH:mm:ss" 和 "yyyy-mm-ddTHH:mm:ss"
  */
 function parseTime(time: string) {

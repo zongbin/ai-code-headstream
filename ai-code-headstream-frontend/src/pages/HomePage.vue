@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { PaperClipOutlined } from '@ant-design/icons-vue'
 import { addApp, deleteApp, listMyAppVoByPage, listSquareAppVoByPage } from '@/api/appController.ts'
-import { getAppDeployUrl } from '@/utils/app.ts'
+import { getAppDeployUrl, APP_LABEL_OPTIONS } from '@/utils/app.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import { useAppList } from '@/composables/useAppList.ts'
 import AppListSection from '@/components/AppListSection.vue'
@@ -50,26 +50,24 @@ const isLogin = computed(() => !!loginUserStore.loginUser?.id)
 const {
   apps: myApps,
   total: myTotal,
-  searchName: mySearchName,
   pageNum: myPageNum,
   pageSize: myPageSize,
   fetchList: fetchMyApps,
-  search: searchMyApps,
   changePage: changeMyPage,
   refreshAfterDelete: refreshMyApps,
-} = useAppList(listMyAppVoByPage, { errorTip: '获取我的应用失败' })
+} = useAppList(listMyAppVoByPage, { errorTip: '获取我的应用失败', pageSize: 8 })
 
 // 案例广场（所有用户公开的应用，精选应用排在最前面）
 const {
   apps: squareApps,
   total: squareTotal,
-  searchName: squareSearchName,
+  label: squareLabel,
   pageNum: squarePageNum,
   pageSize: squarePageSize,
   fetchList: fetchSquareApps,
-  search: searchSquareApps,
+  changeLabel: changeSquareLabel,
   changePage: changeSquarePage,
-} = useAppList(listSquareAppVoByPage, { errorTip: '获取案例广场应用失败' })
+} = useAppList(listSquareAppVoByPage, { errorTip: '获取案例广场应用失败', pageSize: 8 })
 
 onMounted(() => {
   // 登录跳转回来后，恢复之前填写的创建想法
@@ -250,7 +248,6 @@ const deleteMyApp = async (app: API.AppVO) => {
     <!-- 我的作品（仅登录后可见） -->
     <app-list-section
       v-if="isLogin"
-      v-model:searchName="mySearchName"
       v-model:pageNum="myPageNum"
       title="我的作品"
       :apps="myApps"
@@ -259,7 +256,6 @@ const deleteMyApp = async (app: API.AppVO) => {
       empty-text="还没有应用，快去创建一个吧"
       author-fallback="我"
       editable
-      @search="searchMyApps"
       @page-change="changeMyPage"
       @view-chat="openAppChat"
       @view-deploy="openDeployedApp"
@@ -267,17 +263,18 @@ const deleteMyApp = async (app: API.AppVO) => {
       @delete="deleteMyApp"
     />
 
-    <!-- 案例广场（用户公开的应用，精选应用排在最前面） -->
+    <!-- 案例广场（用户公开的应用，精选应用排在最前面，可按标签筛选） -->
     <app-list-section
-      v-model:searchName="squareSearchName"
       v-model:pageNum="squarePageNum"
+      v-model:label="squareLabel"
       title="案例广场"
       :apps="squareApps"
       :total="squareTotal"
       :page-size="squarePageSize"
+      :label-options="APP_LABEL_OPTIONS"
       empty-text="暂无公开应用"
       author-fallback="官方"
-      @search="searchSquareApps"
+      @label-change="changeSquareLabel"
       @page-change="changeSquarePage"
       @view-chat="openAppChat"
       @view-deploy="openDeployedApp"

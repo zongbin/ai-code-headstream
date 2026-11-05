@@ -41,6 +41,11 @@ public class AppQueryRequest extends PageRequest implements Serializable {
     private String codeGenType;
 
     /**
+     * 应用标签（枚举）
+     */
+    private String label;
+
+    /**
      * 部署标识
      */
     private String deployKey;

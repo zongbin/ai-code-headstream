@@ -16,6 +16,7 @@ import com.leon.aicodeheadstream.model.dto.app.AppAdminUpdateRequest;
 import com.leon.aicodeheadstream.model.dto.app.AppQueryRequest;
 import com.leon.aicodeheadstream.model.dto.app.AppUpdateRequest;
 import com.leon.aicodeheadstream.model.entity.User;
+import com.leon.aicodeheadstream.model.enums.AppLabelEnum;
 import com.leon.aicodeheadstream.model.enums.CodeGenTypeEnum;
 import com.leon.aicodeheadstream.model.vo.AppVO;
 import com.leon.aicodeheadstream.model.vo.UserVO;
@@ -148,6 +149,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         app.setPriority(AppConstant.DEFAULT_APP_PRIORITY);
         // 应用创建时默认为私有，用户可在应用修改页面调整为公开
         app.setVisible(AppConstant.APP_VISIBLE_PRIVATE);
+        // 应用创建时标签为空，用户可在应用修改页面设置标签
+        app.setLabel(AppConstant.DEFAULT_APP_LABEL);
         app.setEditTime(LocalDateTime.now());
         boolean result = this.save(app);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "创建应用失败");
@@ -176,6 +179,12 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         updateApp.setAppName(appName);
         if (visible != null) {
             updateApp.setVisible(visible);
+        }
+        // 标签：null 表示不修改，空字符串表示清空标签
+        String label = appUpdateRequest.getLabel();
+        if (label != null) {
+            checkAppLabel(label);
+            updateApp.setLabel(label);
         }
         updateApp.setEditTime(LocalDateTime.now());
         boolean result = this.updateById(updateApp);
@@ -258,7 +267,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         String cover = appAdminUpdateRequest.getCover();
         Integer priority = appAdminUpdateRequest.getPriority();
         Integer visible = appAdminUpdateRequest.getVisible();
-        boolean hasUpdate = StrUtil.isNotBlank(appName) || cover != null || priority != null || visible != null;
+        String label = appAdminUpdateRequest.getLabel();
+        boolean hasUpdate = StrUtil.isNotBlank(appName) || cover != null || priority != null || visible != null
+                || label != null;
         ThrowUtils.throwIf(!hasUpdate, ErrorCode.PARAMS_ERROR, "没有要更新的内容");
         if (StrUtil.isNotBlank(appName)) {
             ThrowUtils.throwIf(appName.length() > 256, ErrorCode.PARAMS_ERROR, "应用名称过长");
@@ -268,6 +279,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         }
         if (visible != null) {
             ThrowUtils.throwIf(!isValidVisible(visible), ErrorCode.PARAMS_ERROR, "可见状态无效");
+        }
+        if (label != null) {
+            checkAppLabel(label);
         }
         App oldApp = this.getById(appAdminUpdateRequest.getId());
         ThrowUtils.throwIf(oldApp == null, ErrorCode.NOT_FOUND_ERROR);
@@ -285,6 +299,10 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         }
         if (visible != null) {
             updateApp.setVisible(visible);
+        }
+        // 标签：null 表示不修改，空字符串表示清空标签
+        if (label != null) {
+            updateApp.setLabel(label);
         }
         boolean result = this.updateById(updateApp);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
@@ -344,6 +362,13 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         Integer priority = appQueryRequest.getPriority();
         Integer visible = appQueryRequest.getVisible();
         Long userId = appQueryRequest.getUserId();
+        String label = appQueryRequest.getLabel();
+        // 标签为空字符串时视为不按标签筛选
+        if (StrUtil.isBlank(label)) {
+            label = null;
+        } else {
+            checkAppLabel(label);
+        }
         String sortField = appQueryRequest.getSortField();
         String sortOrder = appQueryRequest.getSortOrder();
         QueryWrapper queryWrapper = QueryWrapper.create()
@@ -355,7 +380,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
                 .eq("deployKey", deployKey)
                 .eq("priority", priority)
                 .eq("visible", visible)
-                .eq("userId", userId);
+                .eq("userId", userId)
+                .eq("label", label);
         if (StrUtil.isNotBlank(sortField) && SORTABLE_FIELDS.contains(sortField)) {
             queryWrapper.orderBy(sortField, "ascend".equals(sortOrder));
             // 次要排序，保证分页结果稳定
@@ -389,5 +415,17 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
      */
     private boolean isValidVisible(Integer visible) {
         return AppConstant.APP_VISIBLE_PRIVATE.equals(visible) || AppConstant.APP_VISIBLE_PUBLIC.equals(visible);
+    }
+
+    /**
+     * 校验应用标签是否合法（空字符串表示清空标签，视为合法）
+     *
+     * @param label 应用标签
+     */
+    private void checkAppLabel(String label) {
+        if (StrUtil.isBlank(label)) {
+            return;
+        }
+        ThrowUtils.throwIf(!AppLabelEnum.isValid(label), ErrorCode.PARAMS_ERROR, "应用标签无效");
     }
 }
