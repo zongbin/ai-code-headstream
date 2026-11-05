@@ -32,14 +32,58 @@ export function getAppDeployUrl(deployKey?: string) {
 }
 
 /**
- * 精选应用的优先级，与后端 AppConstant.GOOD_APP_PRIORITY 保持一致
+ * 精选应用的优先级，与后端 AppConstant.GOOD_APP_PRIORITY 保持一致。
  */
 export const GOOD_APP_PRIORITY = 99
+
+/**
+ * 置顶应用的优先级，与后端 AppConstant.TOP_APP_PRIORITY 保持一致。
+ * 置顶通过把优先级标记为该值实现，与精选（99）互斥。
+ */
+export const PINNED_APP_PRIORITY = 999
 
 /**
  * 默认应用优先级，与后端 AppConstant.DEFAULT_APP_PRIORITY 保持一致
  */
 export const DEFAULT_APP_PRIORITY = 0
+
+/**
+ * 应用是否为精选（优先级为 99）
+ */
+export function isGoodApp(app?: API.AppVO) {
+  return app?.priority === GOOD_APP_PRIORITY
+}
+
+/**
+ * 应用是否为置顶（优先级为 999）
+ */
+export function isPinnedApp(app?: API.AppVO) {
+  return app?.priority === PINNED_APP_PRIORITY
+}
+
+/**
+ * 应用可见状态：私有，与后端 AppConstant.APP_VISIBLE_PRIVATE 保持一致
+ */
+export const APP_VISIBLE_PRIVATE = 0
+
+/**
+ * 应用可见状态：公开，与后端 AppConstant.APP_VISIBLE_PUBLIC 保持一致
+ */
+export const APP_VISIBLE_PUBLIC = 1
+
+/**
+ * 应用是否公开
+ */
+export function isPublicApp(app?: API.AppVO) {
+  return app?.visible === APP_VISIBLE_PUBLIC
+}
+
+/**
+ * 应用可见状态文案
+ */
+export function getAppVisibleText(visible?: number) {
+  return visible === APP_VISIBLE_PUBLIC ? '公开' : '私有'
+}
 
 /**
  * 解析后端时间。兼容 "yyyy-mm-dd HH:mm:ss" 和 "yyyy-mm-ddTHH:mm:ss"

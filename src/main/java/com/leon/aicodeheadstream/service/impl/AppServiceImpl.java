@@ -6,6 +6,7 @@ import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.leon.aicodeheadstream.constant.AppConstant;
+import com.leon.aicodeheadstream.constant.UserConstant;
 import com.leon.aicodeheadstream.core.AiCodeGeneratorFacade;
 import com.leon.aicodeheadstream.exception.BusinessException;
 import com.leon.aicodeheadstream.exception.ErrorCode;
@@ -46,6 +47,12 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppService {
+
+    /**
+     * 允许排序的字段白名单（防止非法字段拼接进 SQL）
+     */
+    private static final Set<String> SORTABLE_FIELDS = Set.of(
+            "id", "appName", "priority", "visible", "deployedTime", "editTime", "createTime", "updateTime");
 
     @Resource
     private UserService userService;
@@ -139,6 +146,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         app.setCodeGenType(CodeGenTypeEnum.MULTI_FILE.getValue());
         app.setUserId(loginUser.getId());
         app.setPriority(AppConstant.DEFAULT_APP_PRIORITY);
+        // 应用创建时默认为私有，用户可在应用修改页面调整为公开
+        app.setVisible(AppConstant.APP_VISIBLE_PRIVATE);
         app.setEditTime(LocalDateTime.now());
         boolean result = this.save(app);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "创建应用失败");
@@ -153,6 +162,10 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         ThrowUtils.throwIf(StrUtil.isBlank(appUpdateRequest.getAppName()), ErrorCode.PARAMS_ERROR, "应用名称不能为空");
         String appName = appUpdateRequest.getAppName();
         ThrowUtils.throwIf(appName.length() > 256, ErrorCode.PARAMS_ERROR, "应用名称过长");
+        Integer visible = appUpdateRequest.getVisible();
+        if (visible != null) {
+            ThrowUtils.throwIf(!isValidVisible(visible), ErrorCode.PARAMS_ERROR, "可见状态无效");
+        }
         App oldApp = this.getById(appUpdateRequest.getId());
         ThrowUtils.throwIf(oldApp == null, ErrorCode.NOT_FOUND_ERROR);
         if (!Objects.equals(oldApp.getUserId(), loginUser.getId())) {
@@ -161,6 +174,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         App updateApp = new App();
         updateApp.setId(oldApp.getId());
         updateApp.setAppName(appName);
+        if (visible != null) {
+            updateApp.setVisible(visible);
+        }
         updateApp.setEditTime(LocalDateTime.now());
         boolean result = this.updateById(updateApp);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
@@ -241,13 +257,17 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         String appName = appAdminUpdateRequest.getAppName();
         String cover = appAdminUpdateRequest.getCover();
         Integer priority = appAdminUpdateRequest.getPriority();
-        boolean hasUpdate = StrUtil.isNotBlank(appName) || cover != null || priority != null;
+        Integer visible = appAdminUpdateRequest.getVisible();
+        boolean hasUpdate = StrUtil.isNotBlank(appName) || cover != null || priority != null || visible != null;
         ThrowUtils.throwIf(!hasUpdate, ErrorCode.PARAMS_ERROR, "没有要更新的内容");
         if (StrUtil.isNotBlank(appName)) {
             ThrowUtils.throwIf(appName.length() > 256, ErrorCode.PARAMS_ERROR, "应用名称过长");
         }
         if (cover != null) {
             ThrowUtils.throwIf(cover.length() > 512, ErrorCode.PARAMS_ERROR, "应用封面地址过长");
+        }
+        if (visible != null) {
+            ThrowUtils.throwIf(!isValidVisible(visible), ErrorCode.PARAMS_ERROR, "可见状态无效");
         }
         App oldApp = this.getById(appAdminUpdateRequest.getId());
         ThrowUtils.throwIf(oldApp == null, ErrorCode.NOT_FOUND_ERROR);
@@ -262,6 +282,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         }
         if (priority != null) {
             updateApp.setPriority(priority);
+        }
+        if (visible != null) {
+            updateApp.setVisible(visible);
         }
         boolean result = this.updateById(updateApp);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
@@ -319,10 +342,11 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         String codeGenType = appQueryRequest.getCodeGenType();
         String deployKey = appQueryRequest.getDeployKey();
         Integer priority = appQueryRequest.getPriority();
+        Integer visible = appQueryRequest.getVisible();
         Long userId = appQueryRequest.getUserId();
         String sortField = appQueryRequest.getSortField();
         String sortOrder = appQueryRequest.getSortOrder();
-        return QueryWrapper.create()
+        QueryWrapper queryWrapper = QueryWrapper.create()
                 .eq("id", id)
                 .like("appName", appName)
                 .like("cover", cover)
@@ -330,7 +354,40 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
                 .eq("codeGenType", codeGenType)
                 .eq("deployKey", deployKey)
                 .eq("priority", priority)
-                .eq("userId", userId)
-                .orderBy(sortField, "ascend".equals(sortOrder));
+                .eq("visible", visible)
+                .eq("userId", userId);
+        if (StrUtil.isNotBlank(sortField) && SORTABLE_FIELDS.contains(sortField)) {
+            queryWrapper.orderBy(sortField, "ascend".equals(sortOrder));
+            // 次要排序，保证分页结果稳定
+            queryWrapper.orderBy("id", false);
+        }
+        return queryWrapper;
+    }
+
+    @Override
+    public void checkAppVisible(App app, User loginUser) {
+        if (app == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "应用不存在");
+        }
+        // 公开应用所有人可见
+        if (AppConstant.APP_VISIBLE_PUBLIC.equals(app.getVisible())) {
+            return;
+        }
+        // 私有应用：只有创建者和管理员可见
+        boolean isAdmin = loginUser != null && UserConstant.ADMIN_ROLE.equals(loginUser.getUserRole());
+        boolean isOwner = loginUser != null && Objects.equals(app.getUserId(), loginUser.getId());
+        if (!isAdmin && !isOwner) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "该应用未公开，无法查看");
+        }
+    }
+
+    /**
+     * 校验可见状态是否合法
+     *
+     * @param visible 可见状态
+     * @return 是否合法
+     */
+    private boolean isValidVisible(Integer visible) {
+        return AppConstant.APP_VISIBLE_PRIVATE.equals(visible) || AppConstant.APP_VISIBLE_PUBLIC.equals(visible);
     }
 }

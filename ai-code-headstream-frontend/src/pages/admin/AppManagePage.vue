@@ -44,6 +44,17 @@
           style="width: 120px"
         />
       </a-form-item>
+      <a-form-item label="可见状态">
+        <a-select
+          v-model:value="searchParams.visible"
+          placeholder="可见状态"
+          style="width: 120px"
+          allow-clear
+        >
+          <a-select-option :value="APP_VISIBLE_PUBLIC">公开</a-select-option>
+          <a-select-option :value="APP_VISIBLE_PRIVATE">私有</a-select-option>
+        </a-select>
+      </a-form-item>
     </search-form>
     <a-divider />
     <a-table
@@ -59,6 +70,11 @@
           <a-image v-if="record.cover" :src="record.cover" :width="80" />
           <span v-else>-</span>
         </template>
+        <template v-else-if="column.dataIndex === 'visible'">
+          <a-tag :color="record.visible === APP_VISIBLE_PUBLIC ? 'green' : 'default'">
+            {{ getAppVisibleText(record.visible) }}
+          </a-tag>
+        </template>
         <template v-else-if="column.dataIndex === 'initPrompt'">
           <a-tooltip :title="record.initPrompt">
             <span class="ellipsis">{{ record.initPrompt }}</span>
@@ -70,7 +86,8 @@
           </a-tag>
         </template>
         <template v-else-if="column.dataIndex === 'priority'">
-          <a-tag v-if="isGoodApp(record)" color="gold">精选</a-tag>
+          <a-tag v-if="isPinnedApp(record)" color="red">置顶</a-tag>
+          <a-tag v-else-if="isGoodApp(record)" color="gold">精选</a-tag>
           <span v-else>{{ record.priority ?? 0 }}</span>
         </template>
         <template v-else-if="column.dataIndex === 'user'">
@@ -87,6 +104,9 @@
             <a-typography-link @click="doEdit(record.id)">编辑</a-typography-link>
             <a-typography-link @click="doToggleGood(record)">
               {{ isGoodApp(record) ? '取消精选' : '精选' }}
+            </a-typography-link>
+            <a-typography-link @click="doToggleTop(record)">
+              {{ isPinnedApp(record) ? '取消置顶' : '置顶' }}
             </a-typography-link>
             <a-popconfirm
               title="确定删除该应用？"
@@ -106,8 +126,22 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { deleteAppByAdmin, listAppVoByPageByAdmin, updateAppByAdmin } from '@/api/appController.ts'
-import { DEFAULT_APP_PRIORITY, formatDateTime, GOOD_APP_PRIORITY } from '@/utils/app.ts'
+import {
+  deleteAppByAdmin,
+  listAppVoByPageByAdmin,
+  updateAppByAdmin,
+} from '@/api/appController.ts'
+import {
+  APP_VISIBLE_PRIVATE,
+  APP_VISIBLE_PUBLIC,
+  DEFAULT_APP_PRIORITY,
+  formatDateTime,
+  getAppVisibleText,
+  GOOD_APP_PRIORITY,
+  isGoodApp,
+  isPinnedApp,
+  PINNED_APP_PRIORITY,
+} from '@/utils/app.ts'
 import { usePagedList } from '@/composables/usePagedList.ts'
 import SearchForm from '@/components/SearchForm.vue'
 
@@ -123,6 +157,11 @@ const columns = [
     title: '应用名称',
     dataIndex: 'appName',
     width: 180,
+  },
+  {
+    title: '可见状态',
+    dataIndex: 'visible',
+    width: 100,
   },
   {
     title: '封面',
@@ -189,6 +228,7 @@ const {
     codeGenType: undefined,
     deployKey: undefined,
     priority: undefined,
+    visible: undefined,
   },
   { errorTip: '获取应用列表失败' },
 )
@@ -202,8 +242,6 @@ onMounted(() => {
 const doEdit = (id: number) => {
   router.push(`/app/edit/${id}`)
 }
-
-const isGoodApp = (record: API.AppVO) => record.priority === GOOD_APP_PRIORITY
 
 // 设为精选 / 取消精选（通过优先级切换）
 const doToggleGood = async (record: API.AppVO) => {
@@ -220,6 +258,24 @@ const doToggleGood = async (record: API.AppVO) => {
     fetchData()
   } else {
     message.error((good ? '取消精选失败，' : '设置精选失败，') + res.data.message)
+  }
+}
+
+// 置顶 / 取消置顶（通过标记优先级实现：置顶为 999，取消置顶回到默认 0）
+const doToggleTop = async (record: API.AppVO) => {
+  if (!record.id) {
+    return
+  }
+  const pinned = isPinnedApp(record)
+  const res = await updateAppByAdmin({
+    id: record.id,
+    priority: pinned ? DEFAULT_APP_PRIORITY : PINNED_APP_PRIORITY,
+  })
+  if (res.data.code === 0) {
+    message.success(pinned ? '已取消置顶' : '已置顶')
+    fetchData()
+  } else {
+    message.error((pinned ? '取消置顶失败，' : '置顶失败，') + res.data.message)
   }
 }
 

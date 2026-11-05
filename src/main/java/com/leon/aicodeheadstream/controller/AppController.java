@@ -175,7 +175,7 @@ public class AppController {
     }
 
     /**
-     * 根据 id 修改自己的应用（目前只支持修改应用名称）
+     * 根据 id 修改自己的应用（支持修改应用名称、可见状态）
      *
      * @param appUpdateRequest 更新请求
      * @param request          请求
@@ -211,14 +211,20 @@ public class AppController {
     /**
      * 根据 id 查看应用详情
      *
-     * @param id 应用 id
+     * 公开应用所有人可见，私有应用只有创建者和管理员可见。
+     *
+     * @param id      应用 id
+     * @param request 请求
      * @return 应用详情
      */
     @GetMapping("/get/vo")
-    public BaseResponse<AppVO> getAppVOById(long id) {
+    public BaseResponse<AppVO> getAppVOById(long id, HttpServletRequest request) {
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
         App app = appService.getById(id);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
+        // 可见性校验
+        User loginUser = userService.getLoginUser(request);
+        appService.checkAppVisible(app, loginUser);
         return ResultUtils.success(appService.getAppVO(app));
     }
 
@@ -245,28 +251,34 @@ public class AppController {
         appQueryRequest.setCodeGenType(null);
         appQueryRequest.setDeployKey(null);
         appQueryRequest.setPriority(null);
+        appQueryRequest.setVisible(null);
         return ResultUtils.success(getAppVOPage(appQueryRequest, pageNum, pageSize));
     }
 
     /**
-     * 分页查询精选的应用列表（支持根据名称查询，每页最多 20 个）
+     * 分页查询案例广场的应用列表（所有用户公开的应用，按优先级从大到小排序，每页最多 20 个）
      *
      * @param appQueryRequest 查询请求
-     * @return 精选应用分页
+     * @return 案例广场应用分页
      */
-    @PostMapping("/good/list/page/vo")
-    public BaseResponse<Page<AppVO>> listGoodAppVOByPage(@RequestBody AppQueryRequest appQueryRequest) {
+    @PostMapping("/square/list/page/vo")
+    public BaseResponse<Page<AppVO>> listSquareAppVOByPage(@RequestBody AppQueryRequest appQueryRequest) {
         ThrowUtils.throwIf(appQueryRequest == null, ErrorCode.PARAMS_ERROR);
         long pageSize = appQueryRequest.getPageSize();
         ThrowUtils.throwIf(pageSize > AppConstant.MAX_PAGE_SIZE, ErrorCode.PARAMS_ERROR, "每页最多查询 20 个应用");
         long pageNum = appQueryRequest.getPageNum();
-        appQueryRequest.setPriority(AppConstant.GOOD_APP_PRIORITY);
+        // 案例广场只展示公开的应用
+        appQueryRequest.setVisible(AppConstant.APP_VISIBLE_PUBLIC);
         appQueryRequest.setId(null);
         appQueryRequest.setCover(null);
         appQueryRequest.setInitPrompt(null);
         appQueryRequest.setCodeGenType(null);
         appQueryRequest.setDeployKey(null);
+        appQueryRequest.setPriority(null);
         appQueryRequest.setUserId(null);
+        // 精选应用（优先级高）排在最前面
+        appQueryRequest.setSortField("priority");
+        appQueryRequest.setSortOrder("descend");
         return ResultUtils.success(getAppVOPage(appQueryRequest, pageNum, pageSize));
     }
 

@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { PaperClipOutlined } from '@ant-design/icons-vue'
-import { addApp, deleteApp, listGoodAppVoByPage, listMyAppVoByPage } from '@/api/appController.ts'
+import { addApp, deleteApp, listMyAppVoByPage, listSquareAppVoByPage } from '@/api/appController.ts'
 import { getAppDeployUrl } from '@/utils/app.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import { useAppList } from '@/composables/useAppList.ts'
@@ -59,17 +59,17 @@ const {
   refreshAfterDelete: refreshMyApps,
 } = useAppList(listMyAppVoByPage, { errorTip: '获取我的应用失败' })
 
-// 精选应用
+// 案例广场（所有用户公开的应用，精选应用排在最前面）
 const {
-  apps: goodApps,
-  total: goodTotal,
-  searchName: goodSearchName,
-  pageNum: goodPageNum,
-  pageSize: goodPageSize,
-  fetchList: fetchGoodApps,
-  search: searchGoodApps,
-  changePage: changeGoodPage,
-} = useAppList(listGoodAppVoByPage, { errorTip: '获取精选应用失败' })
+  apps: squareApps,
+  total: squareTotal,
+  searchName: squareSearchName,
+  pageNum: squarePageNum,
+  pageSize: squarePageSize,
+  fetchList: fetchSquareApps,
+  search: searchSquareApps,
+  changePage: changeSquarePage,
+} = useAppList(listSquareAppVoByPage, { errorTip: '获取案例广场应用失败' })
 
 onMounted(() => {
   // 登录跳转回来后，恢复之前填写的创建想法
@@ -78,7 +78,7 @@ onMounted(() => {
     promptText.value = cachedPrompt
     sessionStorage.removeItem(PROMPT_CACHE_KEY)
   }
-  fetchGoodApps()
+  fetchSquareApps()
   // 已登录时加载我的作品
   if (isLogin.value) {
     fetchMyApps()
@@ -267,19 +267,18 @@ const deleteMyApp = async (app: API.AppVO) => {
       @delete="deleteMyApp"
     />
 
-    <!-- 精选案例 -->
+    <!-- 案例广场（用户公开的应用，精选应用排在最前面） -->
     <app-list-section
-      v-model:searchName="goodSearchName"
-      v-model:pageNum="goodPageNum"
-      title="精选案例"
-      :apps="goodApps"
-      :total="goodTotal"
-      :page-size="goodPageSize"
-      empty-text="暂无精选应用"
+      v-model:searchName="squareSearchName"
+      v-model:pageNum="squarePageNum"
+      title="案例广场"
+      :apps="squareApps"
+      :total="squareTotal"
+      :page-size="squarePageSize"
+      empty-text="暂无公开应用"
       author-fallback="官方"
-      tag="精选"
-      @search="searchGoodApps"
-      @page-change="changeGoodPage"
+      @search="searchSquareApps"
+      @page-change="changeSquarePage"
       @view-chat="openAppChat"
       @view-deploy="openDeployedApp"
     />

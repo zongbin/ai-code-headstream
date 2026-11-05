@@ -10,7 +10,11 @@ import {
   updateAppByAdmin,
 } from '@/api/appController.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
-import { formatDateTime } from '@/utils/app.ts'
+import {
+  APP_VISIBLE_PRIVATE,
+  APP_VISIBLE_PUBLIC,
+  formatDateTime,
+} from '@/utils/app.ts'
 import ACCESS_ENUM from '@/access/accessEnum.ts'
 import PageCard from '@/components/PageCard.vue'
 import FormActions from '@/components/FormActions.vue'
@@ -39,6 +43,7 @@ const form = reactive({
   appName: '',
   cover: '',
   priority: 0,
+  visible: APP_VISIBLE_PRIVATE,
 })
 
 // 表单校验规则
@@ -71,6 +76,7 @@ const loadAppInfo = async () => {
       form.appName = res.data.data.appName ?? ''
       form.cover = res.data.data.cover ?? ''
       form.priority = res.data.data.priority ?? 0
+      form.visible = res.data.data.visible ?? APP_VISIBLE_PRIVATE
     } else {
       message.error('获取应用信息失败，' + res.data.message)
     }
@@ -108,10 +114,12 @@ const doSubmit = async () => {
           appName: form.appName,
           cover: form.cover,
           priority: form.priority,
+          visible: form.visible,
         })
       : await updateApp({
           id: appId.value as unknown as number,
           appName: form.appName,
+          visible: form.visible,
         })
     if (res.data.code === 0) {
       message.success('保存成功')
@@ -161,9 +169,18 @@ const doCancel = () => {
             style="margin-top: 8px; border-radius: 6px"
           />
         </a-form-item>
+        <a-form-item label="可见状态" name="visible">
+          <a-radio-group v-model:value="form.visible">
+            <a-radio :value="APP_VISIBLE_PRIVATE">私有</a-radio>
+            <a-radio :value="APP_VISIBLE_PUBLIC">公开</a-radio>
+          </a-radio-group>
+          <div class="tip">
+            公开后，所有用户都可以在案例广场看到该应用；私有则只有你自己和管理员可见
+          </div>
+        </a-form-item>
         <a-form-item v-if="isAdmin" label="优先级">
-          <a-input-number v-model:value="form.priority" :min="0" :max="99" style="width: 200px" />
-          <div class="tip">优先级设置为 99 即为精选应用</div>
+          <a-input-number v-model:value="form.priority" :min="0" :max="999" style="width: 200px" />
+          <div class="tip">优先级为 99 即为精选应用，为 999 即为置顶应用</div>
         </a-form-item>
         <a-form-item label="初始提示词">
           <a-textarea

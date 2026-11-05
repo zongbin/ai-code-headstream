@@ -39,6 +39,7 @@ create table app
     deployKey    varchar(64)                        null comment '部署标识',
     deployedTime datetime                           null comment '部署时间',
     priority     int      default 0                 not null comment '优先级',
+    visible      tinyint  default 0                 not null comment '可见状态：0-私有，1-公开',
     userId       bigint                             not null comment '创建用户id',
     editTime     datetime default CURRENT_TIMESTAMP not null comment '编辑时间',
     createTime   datetime default CURRENT_TIMESTAMP not null comment '创建时间',
@@ -46,6 +47,12 @@ create table app
     isDelete     tinyint  default 0                 not null comment '是否删除',
     UNIQUE KEY uk_deployKey (deployKey), -- 确保部署标识唯一
     INDEX idx_appName (appName),         -- 提升基于应用名称的查询性能
-    INDEX idx_userId (userId)            -- 提升基于用户 ID 的查询性能
+    INDEX idx_userId (userId),           -- 提升基于用户 ID 的查询性能
+    INDEX idx_visible (visible)          -- 提升基于可见状态的查询性能
 ) comment '应用' collate = utf8mb4_unicode_ci;
+
+-- 已存在的数据库执行此脚本，为应用表新增可见状态字段（历史数据默认为私有）
+-- alter table app
+--     add column visible tinyint default 0 not null comment '可见状态：0-私有，1-公开' after priority,
+--     add index idx_visible (visible);
 

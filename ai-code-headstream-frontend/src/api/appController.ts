@@ -125,12 +125,12 @@ export async function getAppVoById(
   })
 }
 
-/** 此处后端没有提供注释 POST /app/good/list/page/vo */
-export async function listGoodAppVoByPage(
+/** 此处后端没有提供注释 POST /app/my/list/page/vo */
+export async function listMyAppVoByPage(
   body: API.AppQueryRequest,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponsePageAppVO>('/app/good/list/page/vo', {
+  return request<API.BaseResponsePageAppVO>('/app/my/list/page/vo', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -140,12 +140,12 @@ export async function listGoodAppVoByPage(
   })
 }
 
-/** 此处后端没有提供注释 POST /app/my/list/page/vo */
-export async function listMyAppVoByPage(
+/** 此处后端没有提供注释 POST /app/square/list/page/vo */
+export async function listSquareAppVoByPage(
   body: API.AppQueryRequest,
   options?: { [key: string]: any }
 ) {
-  return request<API.BaseResponsePageAppVO>('/app/my/list/page/vo', {
+  return request<API.BaseResponsePageAppVO>('/app/square/list/page/vo', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { DeleteOutlined, EditOutlined, EllipsisOutlined } from '@ant-design/icons-vue'
-import { formatDate, getAppCoverUrl } from '@/utils/app.ts'
+import { formatDate, getAppCoverUrl, isGoodApp, isPinnedApp } from '@/utils/app.ts'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     /** 应用信息 */
     app: API.AppVO
@@ -19,6 +20,32 @@ withDefaults(
     editable: false,
   },
 )
+
+/**
+ * 卡片右上角标签
+ *
+ * 未指定固定标签时，置顶应用展示「置顶」，精选应用展示「精选」。
+ */
+const displayTag = computed(() => {
+  if (props.tag) {
+    return props.tag
+  }
+  if (isPinnedApp(props.app)) {
+    return '置顶'
+  }
+  return isGoodApp(props.app) ? '精选' : ''
+})
+
+/** 标签颜色：精选用金色，置选用红色，其余用默认色 */
+const tagColor = computed(() => {
+  if (displayTag.value === '精选') {
+    return 'gold'
+  }
+  if (displayTag.value === '置顶') {
+    return 'red'
+  }
+  return 'blue'
+})
 
 const emit = defineEmits<{
   /** 查看对话 */
@@ -96,7 +123,7 @@ const emit = defineEmits<{
           </span>
         </div>
       </div>
-      <a-tag v-if="tag" color="blue" class="app-card__tag">{{ tag }}</a-tag>
+      <a-tag v-if="displayTag" :color="tagColor" class="app-card__tag">{{ displayTag }}</a-tag>
     </div>
   </div>
 </template>

@@ -49,7 +49,7 @@ public interface AppService extends IService<App> {
     long createApp(AppAddRequest appAddRequest, User loginUser);
 
     /**
-     * 用户修改自己的应用（仅应用名称）
+     * 用户修改自己的应用（应用名称、可见状态）
      *
      * @param appUpdateRequest 更新请求
      * @param loginUser        当前登录用户
@@ -75,12 +75,22 @@ public interface AppService extends IService<App> {
     boolean deleteAppByAdmin(Long id);
 
     /**
-     * 管理员更新应用（名称、封面、优先级）
+     * 管理员更新应用（名称、封面、优先级、可见状态）
      *
      * @param appAdminUpdateRequest 更新请求
      * @return 是否成功
      */
     boolean updateAppByAdmin(AppAdminUpdateRequest appAdminUpdateRequest);
+
+    /**
+     * 校验当前用户能否查看该应用
+     *
+     * 公开应用所有人可见；私有应用只有创建者和管理员可见。
+     *
+     * @param app       应用
+     * @param loginUser 当前登录用户
+     */
+    void checkAppVisible(App app, User loginUser);
 
     /**
      * 获取应用视图
