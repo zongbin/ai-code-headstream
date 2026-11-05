@@ -1,7 +1,7 @@
 <template>
   <div id="appManagePage">
     <!-- 搜索表单 -->
-    <a-form layout="inline" :model="searchParams" @finish="doSearch">
+    <search-form @search="doSearch" @reset="doReset">
       <a-form-item label="应用 ID">
         <a-input v-model:value="searchParams.id" placeholder="输入应用 ID" style="width: 120px" />
       </a-form-item>
@@ -44,11 +44,7 @@
           style="width: 120px"
         />
       </a-form-item>
-      <a-form-item>
-        <a-button type="primary" html-type="submit">搜索</a-button>
-        <a-button style="margin-left: 8px" html-type="button" @click="doReset">重置</a-button>
-      </a-form-item>
-    </a-form>
+    </search-form>
     <a-divider />
     <a-table
       :columns="columns"
@@ -107,11 +103,13 @@
   </div>
 </template>
 <script lang="ts" setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { deleteAppByAdmin, listAppVoByPageByAdmin, updateAppByAdmin } from '@/api/appController.ts'
 import { DEFAULT_APP_PRIORITY, formatDateTime, GOOD_APP_PRIORITY } from '@/utils/app.ts'
+import { usePagedList } from '@/composables/usePagedList.ts'
+import SearchForm from '@/components/SearchForm.vue'
 
 const router = useRouter()
 
@@ -174,74 +172,31 @@ const columns = [
   },
 ]
 
-// 数据
-const data = ref<API.AppVO[]>([])
-const total = ref(0)
-
-// 搜索条件
-const searchParams = reactive<API.AppQueryRequest>({
-  pageNum: 1,
-  pageSize: 10,
-})
-
-// 获取数据
-const fetchData = async () => {
-  try {
-    const res = await listAppVoByPageByAdmin({
-      ...searchParams,
-    })
-    if (res.data.code === 0 && res.data.data) {
-      data.value = res.data.data.records ?? []
-      total.value = res.data.data.totalRow ?? 0
-    } else {
-      message.error('获取数据失败，' + res.data.message)
-    }
-  } catch (error) {
-    console.error('获取应用列表失败', error)
-    message.error('获取数据失败，请检查后端服务是否已启动')
-  }
-}
+const {
+  data,
+  searchParams,
+  pagination,
+  fetchData,
+  doSearch,
+  doReset,
+  doTableChange,
+} = usePagedList<API.AppVO, API.AppQueryRequest>(
+  listAppVoByPageByAdmin,
+  {
+    id: undefined,
+    appName: undefined,
+    userId: undefined,
+    codeGenType: undefined,
+    deployKey: undefined,
+    priority: undefined,
+  },
+  { errorTip: '获取应用列表失败' },
+)
 
 // 页面加载时请求一次
 onMounted(() => {
   fetchData()
 })
-
-// 分页参数
-const pagination = computed(() => {
-  return {
-    current: searchParams.pageNum ?? 1,
-    pageSize: searchParams.pageSize ?? 10,
-    total: total.value,
-    showSizeChanger: true,
-    showTotal: (total: number) => `共 ${total} 条`,
-  }
-})
-
-// 表格变化处理
-const doTableChange = (page: { current?: number; pageSize?: number }) => {
-  searchParams.pageNum = page.current
-  searchParams.pageSize = page.pageSize
-  fetchData()
-}
-
-// 搜索
-const doSearch = () => {
-  searchParams.pageNum = 1
-  fetchData()
-}
-
-// 重置
-const doReset = () => {
-  searchParams.id = undefined
-  searchParams.appName = undefined
-  searchParams.userId = undefined
-  searchParams.codeGenType = undefined
-  searchParams.deployKey = undefined
-  searchParams.priority = undefined
-  searchParams.pageNum = 1
-  fetchData()
-}
 
 // 编辑应用
 const doEdit = (id: number) => {

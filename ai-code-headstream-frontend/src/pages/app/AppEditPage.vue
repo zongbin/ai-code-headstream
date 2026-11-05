@@ -12,6 +12,8 @@ import {
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import { formatDateTime } from '@/utils/app.ts'
 import ACCESS_ENUM from '@/access/accessEnum.ts'
+import PageCard from '@/components/PageCard.vue'
+import FormActions from '@/components/FormActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -135,7 +137,7 @@ const doCancel = () => {
 
 <template>
   <div id="appEditPage">
-    <a-card title="应用信息修改" :loading="loading" style="max-width: 720px; margin: 0 auto">
+    <page-card title="应用信息修改" :loading="loading" :max-width="720">
       <a-alert
         v-if="!loading && !canEdit"
         type="error"
@@ -176,16 +178,9 @@ const doCancel = () => {
         <a-form-item label="创建时间">
           <span>{{ formatDateTime(appInfo.createTime) }}</span>
         </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" html-type="submit" :loading="saving" :disabled="!canEdit">
-              保存
-            </a-button>
-            <a-button html-type="button" @click="doCancel">取消</a-button>
-          </a-space>
-        </a-form-item>
+        <form-actions :saving="saving" :disabled="!canEdit" @cancel="doCancel" />
       </a-form>
-    </a-card>
+    </page-card>
   </div>
 </template>
 

@@ -3,16 +3,12 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
-  ArrowUpOutlined,
   BulbOutlined,
   CheckOutlined,
   CopyOutlined,
-  DeleteOutlined,
   EditOutlined,
-  ExportOutlined,
   InfoCircleOutlined,
   PaperClipOutlined,
-  ReloadOutlined,
   RocketOutlined,
 } from '@ant-design/icons-vue'
 import { chatToGenCodeStream, createTypewriter } from '@/utils/appChat.ts'
@@ -23,10 +19,14 @@ import {
   getAppVoById,
   listMyAppVoByPage,
 } from '@/api/appController.ts'
-import { getAppPreviewUrl, formatDateTime } from '@/utils/app.ts'
+import { getAppPreviewUrl } from '@/utils/app.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import ACCESS_ENUM from '@/access/accessEnum.ts'
 import ChatMessageContent from '@/components/ChatMessageContent.vue'
+import AppDetailModal from '@/components/AppDetailModal.vue'
+import AppPreview from '@/components/AppPreview.vue'
+import SendButton from '@/components/SendButton.vue'
+import ToolButton from '@/components/ToolButton.vue'
 import siteLogo from '@/assets/logo.png'
 
 interface ChatMessage {
@@ -97,7 +97,6 @@ let requestSeq = 0
 // 预览区域
 const previewReady = ref(false)
 const previewUrl = ref('')
-const previewVersion = ref(0)
 const messagesRef = ref<HTMLElement | null>(null)
 
 // 部署结果
@@ -182,13 +181,6 @@ const loadMyApps = async () => {
 }
 
 /**
- * 刷新预览页面
- */
-const refreshPreview = () => {
-  previewVersion.value++
-}
-
-/**
  * 在新窗口打开预览页面
  */
 const openPreview = () => {
@@ -197,6 +189,7 @@ const openPreview = () => {
   }
   window.open(previewUrl.value, '_blank')
 }
+
 
 /**
  * 发送消息并接收 AI 流式回复
@@ -272,20 +265,20 @@ const sendMessage = async (text: string) => {
       message.error(`生成代码失败，${detail}`)
     }
   } finally {
-    if (seq !== requestSeq) {
-      return
+    // 请求已过期（切换应用等）时不做清理，状态已由对应流程重置
+    if (seq === requestSeq) {
+      if (aiMessage) {
+        aiMessage.streaming = false
+      }
+      streaming.value = false
+      abortController = null
+      typewriter = null
+      if (succeeded) {
+        // 打字机打完后再展示网页，避免预览先于对话出现
+        showPreview()
+      }
+      await scrollToBottom()
     }
-    if (aiMessage) {
-      aiMessage.streaming = false
-    }
-    streaming.value = false
-    abortController = null
-    typewriter = null
-    if (succeeded) {
-      // 打字机打完后再展示网页，避免预览先于对话出现
-      showPreview()
-    }
-    await scrollToBottom()
   }
 }
 
@@ -306,7 +299,6 @@ const showPreview = () => {
     }
     previewUrl.value = url
     previewReady.value = true
-    previewVersion.value++
   }, 800)
 }
 
@@ -535,40 +527,9 @@ onBeforeUnmount(() => {
           </a-tooltip>
           <div class="chat-page__input-toolbar">
             <a-space :size="4">
-              <a-tooltip title="上传附件功能暂未开放">
-                <span class="chat-page__tip">
-                  <a-button
-                    type="text"
-                    class="chat-page__tool-btn"
-                    disabled
-                    aria-label="上传附件"
-                  >
-                    <PaperClipOutlined />
-                    <span>上传</span>
-                  </a-button>
-                </span>
-              </a-tooltip>
-              <a-tooltip title="编辑功能暂未开放">
-                <span class="chat-page__tip">
-                  <a-button type="text" class="chat-page__tool-btn" disabled aria-label="编辑">
-                    <EditOutlined />
-                    <span>编辑</span>
-                  </a-button>
-                </span>
-              </a-tooltip>
-              <a-tooltip title="提示词优化功能暂未开放">
-                <span class="chat-page__tip">
-                  <a-button
-                    type="text"
-                    class="chat-page__tool-btn"
-                    disabled
-                    aria-label="优化提示词"
-                  >
-                    <BulbOutlined />
-                    <span>优化</span>
-                  </a-button>
-                </span>
-              </a-tooltip>
+              <tool-button :icon="PaperClipOutlined" label="上传" tooltip="上传附件功能暂未开放" />
+              <tool-button :icon="EditOutlined" label="编辑" />
+              <tool-button :icon="BulbOutlined" label="优化" tooltip="提示词优化功能暂未开放" />
             </a-space>
             <a-tooltip
               :title="
@@ -576,19 +537,11 @@ onBeforeUnmount(() => {
               "
             >
               <span class="chat-page__tip">
-                <a-button
-                  type="primary"
-                  shape="circle"
-                  class="chat-page__send"
+                <send-button
                   :loading="streaming"
                   :disabled="streaming || !inputText.trim() || !isOwner"
-                  aria-label="发送"
                   @click="doSend"
-                >
-                  <template #icon>
-                    <ArrowUpOutlined />
-                  </template>
-                </a-button>
+                />
               </span>
             </a-tooltip>
           </div>
@@ -596,101 +549,18 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- 右侧：网页展示区域 -->
-      <div class="chat-page__preview">
-        <div class="chat-page__preview-header">
-          <span class="chat-page__preview-title">网页效果</span>
-          <a-space :size="4">
-            <a-tooltip :title="previewReady ? '刷新预览' : '生成完成后可刷新'">
-              <span class="chat-page__tip">
-                <a-button
-                  type="text"
-                  class="chat-page__icon-btn"
-                  :disabled="!previewReady"
-                  aria-label="刷新预览"
-                  @click="refreshPreview"
-                >
-                  <ReloadOutlined />
-                </a-button>
-              </span>
-            </a-tooltip>
-            <a-tooltip :title="previewReady ? '在新窗口打开' : '生成完成后可打开'">
-              <span class="chat-page__tip">
-                <a-button
-                  type="text"
-                  class="chat-page__icon-btn"
-                  :disabled="!previewReady"
-                  aria-label="在新窗口打开"
-                  @click="openPreview"
-                >
-                  <ExportOutlined />
-                </a-button>
-              </span>
-            </a-tooltip>
-          </a-space>
-        </div>
-        <div class="chat-page__preview-body">
-          <div v-if="!previewReady" class="chat-page__preview-empty">
-            <a-empty description="生成完成后在此预览网页效果" />
-          </div>
-          <iframe
-            v-else
-            :key="previewVersion"
-            class="chat-page__iframe"
-            :src="previewUrl"
-            title="网页预览"
-          ></iframe>
-        </div>
-      </div>
+      <app-preview :url="previewUrl" :ready="previewReady" @open="openPreview" />
     </div>
 
     <!-- 应用详情悬浮窗 -->
-    <a-modal
+    <app-detail-modal
       v-model:open="detailVisible"
-      title="应用详情"
-      :footer="null"
-      :width="420"
-      centered
-    >
-      <div class="app-detail">
-        <div class="app-detail__section">
-          <div class="app-detail__label">创建者</div>
-          <div class="app-detail__creator">
-            <a-avatar :size="36" :src="appInfo.user?.userAvatar">
-              {{ (appInfo.user?.userName ?? '?').charAt(0) }}
-            </a-avatar>
-            <span class="app-detail__creator-name">{{ appInfo.user?.userName ?? '-' }}</span>
-          </div>
-        </div>
-        <div class="app-detail__section">
-          <div class="app-detail__label">创建时间</div>
-          <div class="app-detail__value">{{ formatDateTime(appInfo.createTime) }}</div>
-        </div>
-        <div v-if="canManage" class="app-detail__section">
-          <div class="app-detail__label">操作</div>
-          <a-space :size="8">
-            <a-button size="small" @click="goEdit">
-              <template #icon>
-                <EditOutlined />
-              </template>
-              修改
-            </a-button>
-            <a-popconfirm
-              title="确定删除该应用？"
-              ok-text="确定"
-              cancel-text="取消"
-              @confirm="doDelete"
-            >
-              <a-button danger size="small" :loading="deleting">
-                <template #icon>
-                  <DeleteOutlined />
-                </template>
-                删除
-              </a-button>
-            </a-popconfirm>
-          </a-space>
-        </div>
-      </div>
-    </a-modal>
+      :app="appInfo"
+      :can-manage="canManage"
+      :deleting="deleting"
+      @edit="goEdit"
+      @delete="doDelete"
+    />
 
     <!-- 部署结果 -->
     <a-modal v-model:open="deployVisible" title="部署成功" :footer="null" :width="460" centered>
@@ -794,35 +664,6 @@ onBeforeUnmount(() => {
   margin-top: 20px;
 }
 
-.app-detail__section {
-  margin-bottom: 16px;
-}
-
-.app-detail__section:last-child {
-  margin-bottom: 0;
-}
-
-.app-detail__label {
-  margin-bottom: 8px;
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.45);
-}
-
-.app-detail__creator {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.app-detail__creator-name {
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.app-detail__value {
-  font-size: 14px;
-}
-
 .chat-page__top-left {
   display: flex;
   gap: 12px;
@@ -851,58 +692,6 @@ onBeforeUnmount(() => {
 .chat-page__tip {
   display: inline-flex;
   line-height: 0;
-}
-
-.chat-page__tool-btn,
-.chat-page__icon-btn,
-.chat-page__send {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.chat-page__tool-btn {
-  gap: 4px;
-  height: 32px;
-  padding: 0 8px;
-  color: rgba(0, 0, 0, 0.65);
-  border-radius: 8px;
-}
-
-.chat-page__tool-btn:not(:disabled):hover {
-  color: #1677ff !important;
-  background: rgba(22, 119, 255, 0.08) !important;
-}
-
-.chat-page__tool-btn:disabled,
-.chat-page__icon-btn:disabled,
-.chat-page__send:disabled {
-  pointer-events: none;
-}
-
-.chat-page__icon-btn {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  color: rgba(0, 0, 0, 0.65);
-  border-radius: 8px;
-}
-
-.chat-page__icon-btn:not(:disabled):hover {
-  color: #1677ff !important;
-  background: rgba(22, 119, 255, 0.08) !important;
-}
-
-.chat-page__send {
-  width: 36px;
-  height: 36px;
-}
-
-.chat-page__tool-btn:focus-visible,
-.chat-page__icon-btn:focus-visible,
-.chat-page__send:focus-visible {
-  outline: 2px solid #1677ff;
-  outline-offset: 2px;
 }
 
 .chat-page__body {
@@ -1007,46 +796,6 @@ onBeforeUnmount(() => {
   margin-top: 8px;
 }
 
-.chat-page__preview {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.chat-page__preview-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.chat-page__preview-title {
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.chat-page__preview-body {
-  flex: 1;
-  min-height: 0;
-  background: #fafafa;
-}
-
-.chat-page__preview-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-}
-
-.chat-page__iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: #fff;
-}
-
 @media (max-width: 992px) {
   .chat-page {
     height: auto;
@@ -1065,10 +814,6 @@ onBeforeUnmount(() => {
 
   .chat-page__messages {
     max-height: 420px;
-  }
-
-  .chat-page__preview-body {
-    height: 480px;
   }
 }
 </style>

@@ -1,18 +1,14 @@
 <template>
   <div id="userManagePage">
     <!-- 搜索表单 -->
-    <a-form layout="inline" :model="searchParams" @finish="doSearch">
+    <search-form @search="doSearch" @reset="doReset">
       <a-form-item label="账号">
         <a-input v-model:value="searchParams.userAccount" placeholder="输入账号" />
       </a-form-item>
       <a-form-item label="用户名">
         <a-input v-model:value="searchParams.userName" placeholder="输入用户名" />
       </a-form-item>
-      <a-form-item>
-        <a-button type="primary" html-type="submit">搜索</a-button>
-        <a-button style="margin-left: 8px" html-type="button" @click="doReset">重置</a-button>
-      </a-form-item>
-    </a-form>
+    </search-form>
     <a-divider />
     <a-table
       :columns="columns"
@@ -26,7 +22,7 @@
           <div>
             <a-input
               v-if="editableData[record.id]"
-              v-model:value="editableData[record.id][column.dataIndex]"
+              v-model:value="editableData[record.id]![column.dataIndex as keyof API.UserVO]"
               style="margin: -5px 0"
             />
             <template v-else-if="column.dataIndex === 'userAvatar'">
@@ -40,7 +36,7 @@
         <template v-else-if="column.dataIndex === 'userRole'">
           <a-select
             v-if="editableData[record.id]"
-            v-model:value="editableData[record.id].userRole"
+            v-model:value="editableData[record.id]!.userRole"
             style="width: 120px"
           >
             <a-select-option value="admin">管理员</a-select-option>
@@ -54,7 +50,7 @@
           </div>
         </template>
         <template v-else-if="column.dataIndex === 'createTime'">
-          {{ dayjs(record.createTime).format('YYYY-MM-DD HH:mm:ss') }}
+          {{ formatDateTime(record.createTime) }}
         </template>
         <template v-else-if="column.key === 'action'">
           <div class="editable-row-operations">
@@ -75,11 +71,13 @@
   </div>
 </template>
 <script lang="ts" setup>
-import { computed, onMounted, reactive, ref, toRaw } from 'vue'
+import { onMounted, reactive, toRaw } from 'vue'
 import type { UnwrapRef } from 'vue'
 import { deleteUser, listUserVoByPage, updateUser } from '@/api/userController.ts'
 import { message } from 'ant-design-vue'
-import dayjs from 'dayjs'
+import { formatDateTime } from '@/utils/app.ts'
+import { usePagedList } from '@/composables/usePagedList.ts'
+import SearchForm from '@/components/SearchForm.vue'
 
 const columns = [
   {
@@ -116,71 +114,30 @@ const columns = [
   },
 ]
 
-// 数据
-const data = ref<API.UserVO[]>([])
-const total = ref(0)
+// 行内编辑中的数据
 const editableData: UnwrapRef<Record<string, API.UserVO>> = reactive({})
 
-// 搜索条件
-const searchParams = reactive<API.UserQueryRequest>({
-  pageNum: 1,
-  pageSize: 10,
-})
-
-// 获取数据
-const fetchData = async () => {
-  try {
-    const res = await listUserVoByPage({
-      ...searchParams,
-    })
-    if (res.data.code === 0 && res.data.data) {
-      data.value = res.data.data.records ?? []
-      total.value = res.data.data.totalRow ?? 0
-    } else {
-      message.error('获取数据失败，' + res.data.message)
-    }
-  } catch (error) {
-    console.error('获取用户列表失败', error)
-    message.error('获取数据失败，请检查后端服务是否已启动')
-  }
-}
+const {
+  data,
+  searchParams,
+  pagination,
+  fetchData,
+  doSearch,
+  doReset,
+  doTableChange,
+} = usePagedList<API.UserVO, API.UserQueryRequest>(
+  listUserVoByPage,
+  {
+    userAccount: undefined,
+    userName: undefined,
+  },
+  { errorTip: '获取用户列表失败' },
+)
 
 // 页面加载时请求一次
 onMounted(() => {
   fetchData()
 })
-
-// 分页参数
-const pagination = computed(() => {
-  return {
-    current: searchParams.pageNum ?? 1,
-    pageSize: searchParams.pageSize ?? 10,
-    total: total.value,
-    showSizeChanger: true,
-    showTotal: (total: number) => `共 ${total} 条`,
-  }
-})
-
-// 表格变化处理
-const doTableChange = (page: any) => {
-  searchParams.pageNum = page.current
-  searchParams.pageSize = page.pageSize
-  fetchData()
-}
-
-// 获取数据
-const doSearch = () => {
-  // 重置页码
-  searchParams.pageNum = 1
-  fetchData()
-}
-
-const doReset = () => {
-  searchParams.userAccount = undefined
-  searchParams.userName = undefined
-  searchParams.pageNum = 1
-  fetchData()
-}
 
 const edit = (id: number) => {
   const current = data.value.find((item) => item.id === id)
@@ -223,7 +180,7 @@ const doDelete = async (id: number) => {
   if (!id) {
     return
   }
-  const res = await deleteUser({id})
+  const res = await deleteUser({ id })
   if (res.data.code === 0) {
     message.success('删除成功')
     // 刷新数据

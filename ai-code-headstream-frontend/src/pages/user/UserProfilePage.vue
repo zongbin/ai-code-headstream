@@ -5,6 +5,8 @@ import type { FormInstance } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import { getLoginUser, updateMyUser } from '@/api/userController.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
+import PageCard from '@/components/PageCard.vue'
+import FormActions from '@/components/FormActions.vue'
 
 const router = useRouter()
 const loginUserStore = useLoginUserStore()
@@ -91,7 +93,7 @@ const doCancel = () => {
 
 <template>
   <div id="userProfilePage">
-    <a-card title="个人设置" :loading="loading" style="max-width: 640px; margin: 0 auto">
+    <page-card title="个人设置" :loading="loading">
       <a-form ref="formRef" :model="form" :rules="rules" layout="vertical" @finish="doSubmit">
         <a-form-item label="账号">
           <a-input v-model:value="form.userAccount" disabled placeholder="账号不可修改" />
@@ -117,14 +119,9 @@ const doCancel = () => {
             show-count
           />
         </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" html-type="submit" :loading="saving">保存</a-button>
-            <a-button html-type="button" @click="doCancel">取消</a-button>
-          </a-space>
-        </a-form-item>
+        <form-actions :saving="saving" @cancel="doCancel" />
       </a-form>
-    </a-card>
+    </page-card>
   </div>
 </template>
 

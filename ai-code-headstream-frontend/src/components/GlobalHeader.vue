@@ -13,11 +13,9 @@ const loginUserStore = useLoginUserStore()
 const routerUse = useRouter()
 
 // 监听路由变化，更新当前选中的菜单
-const selectedKeys = ref<String[]>(['/'])
-routerUse.afterEach((to, from, next) => {
-  {
-    selectedKeys.value = [to.path]
-  }
+const selectedKeys = ref<string[]>(['/'])
+routerUse.afterEach((to) => {
+  selectedKeys.value = [to.path]
 })
 
 // 菜单配置项
@@ -25,22 +23,18 @@ const originItems = [
   {
     key: '/',
     label: '主页',
-    title: '主页',
   },
   {
     key: '/admin/userManage',
     label: '用户管理',
-    title: '用户管理',
   },
   {
     key: '/admin/appManage',
     label: '应用管理',
-    title: '应用管理',
   },
   {
     key: '/about',
     label: '关于',
-    title: '关于',
   },
 ]
 type MenuItem = NonNullable<MenuProps['items']>[number]
@@ -48,14 +42,14 @@ type MenuItem = NonNullable<MenuProps['items']>[number]
 function menuToRouteItem(menu: MenuItem) {
   // 排除分割线、分组等没有 key 的项
   if (!menu || !('key' in menu) || menu.key == null) {
-    return { path: '', meta: {} as Record<string, any> }
+    return { path: '', meta: {} as Record<string, unknown> }
   }
   const path = String(menu.key)
   const route = router.getRoutes().find((r) => r.path === path)
 
   if (!route) {
     console.warn(`[menu] 菜单项 ${path} 未匹配到路由`)
-    return { path, meta: {} as Record<string, any> }
+    return { path, meta: {} as Record<string, unknown> }
   }
   return route
 }
@@ -64,9 +58,6 @@ function menuToRouteItem(menu: MenuItem) {
 const filterMenus = (menus = [] as MenuProps['items']) => {
   return menus?.filter((menu) => {
     const item = menuToRouteItem(menu)
-    // if (item.meta?.hideInMenu) {
-    //   return false
-    // }
     // 根据权限过滤菜单，有权限则返回 true，则保留该菜单
     return checkAccess(loginUserStore.loginUser, item.meta?.access as string)
   })

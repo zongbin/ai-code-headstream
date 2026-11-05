@@ -49,34 +49,21 @@ function parseTime(time: string) {
   return new Date(normalized)
 }
 
+/** 后端未返回封面时使用的占位图 */
+const PLACEHOLDER_COVER = 'https://picsum.photos/320/180'
+
 /**
- * 格式化时间：相对时间（如：5 小时前）
+ * 应用封面地址
+ *
+ * 有封面用接口返回的地址，没有则用占位图。
+ * 占位图按应用 id 区分，避免同一地址被浏览器缓存成同一张图。
  */
-export function formatFromNow(time?: string) {
-  if (!time) {
-    return '未知时间'
+export function getAppCoverUrl(app: API.AppVO) {
+  const cover = app.cover?.trim()
+  if (cover) {
+    return cover
   }
-  const date = parseTime(time)
-  if (Number.isNaN(date.getTime())) {
-    return time
-  }
-  const diff = Date.now() - date.getTime()
-  const minute = 60 * 1000
-  const hour = 60 * minute
-  const day = 24 * hour
-  if (diff < minute) {
-    return '刚刚'
-  }
-  if (diff < hour) {
-    return `${Math.floor(diff / minute)} 分钟前`
-  }
-  if (diff < day) {
-    return `${Math.floor(diff / hour)} 小时前`
-  }
-  if (diff < 30 * day) {
-    return `${Math.floor(diff / day)} 天前`
-  }
-  return date.toLocaleDateString()
+  return `${PLACEHOLDER_COVER}?random=${encodeURIComponent(String(app.id ?? 'app'))}`
 }
 
 /**
