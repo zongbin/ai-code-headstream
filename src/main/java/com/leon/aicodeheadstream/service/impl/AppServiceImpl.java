@@ -25,6 +25,7 @@ import com.leon.aicodeheadstream.model.entity.App;
 import com.leon.aicodeheadstream.mapper.AppMapper;
 import com.leon.aicodeheadstream.service.AppService;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -43,6 +44,7 @@ import java.util.stream.Collectors;
  * @author leon
  */
 @Service
+@Slf4j
 public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppService {
 
     @Resource
@@ -174,7 +176,62 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         if (!Objects.equals(oldApp.getUserId(), loginUser.getId())) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
-        return this.removeById(id);
+        boolean result = this.removeById(id);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "删除应用失败");
+        cleanTempFiles(oldApp);
+        return true;
+    }
+
+    @Override
+    public boolean deleteAppByAdmin(Long id) {
+        ThrowUtils.throwIf(id == null || id <= 0, ErrorCode.PARAMS_ERROR);
+        App oldApp = this.getById(id);
+        ThrowUtils.throwIf(oldApp == null, ErrorCode.NOT_FOUND_ERROR);
+        boolean result = this.removeById(id);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "删除应用失败");
+        cleanTempFiles(oldApp);
+        return true;
+    }
+
+    /**
+     * 清理应用产生的临时文件：代码生成目录（{codeGenType}_{appId}）与部署目录（{deployKey}）。
+     * 清理失败只记录日志，不影响应用本身的删除结果。
+     *
+     * @param app 被删除的应用
+     */
+    private void cleanTempFiles(App app) {
+        if (app == null) {
+            return;
+        }
+        // 1、清理代码生成目录
+        String codeGenType = app.getCodeGenType();
+        if (StrUtil.isNotBlank(codeGenType)) {
+            String sourceDirName = codeGenType + "_" + app.getId();
+            delTempDir(AppConstant.CODE_OUTPUT_ROOT_DIR, sourceDirName);
+        }
+        // 2、清理部署目录
+        String deployKey = app.getDeployKey();
+        if (StrUtil.isNotBlank(deployKey)) {
+            delTempDir(AppConstant.CODE_DEPLOY_ROOT_DIR, deployKey);
+        }
+    }
+
+    /**
+     * 删除临时目录（不存在时忽略）
+     *
+     * @param rootDir  根目录
+     * @param dirName  目录名
+     */
+    private void delTempDir(String rootDir, String dirName) {
+        String dirPath = rootDir + File.separator + dirName;
+        try {
+            if (FileUtil.exist(dirPath)) {
+                FileUtil.del(dirPath);
+                log.info("已清理应用临时目录：{}", dirPath);
+            }
+        } catch (Exception e) {
+            log.warn("清理应用临时目录失败：{}，原因：{}", dirPath, e.getMessage());
+        }
     }
 
     @Override

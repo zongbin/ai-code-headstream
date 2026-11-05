@@ -67,6 +67,14 @@ public interface AppService extends IService<App> {
     boolean deleteMyApp(Long id, User loginUser);
 
     /**
+     * 管理员删除任意应用（同时清理应用产生的临时文件）
+     *
+     * @param id 应用 id
+     * @return 是否成功
+     */
+    boolean deleteAppByAdmin(Long id);
+
+    /**
      * 管理员更新应用（名称、封面、优先级）
      *
      * @param appAdminUpdateRequest 更新请求

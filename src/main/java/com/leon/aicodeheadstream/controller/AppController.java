@@ -283,9 +283,7 @@ public class AppController {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
         long id = deleteRequest.getId();
-        App oldApp = appService.getById(id);
-        ThrowUtils.throwIf(oldApp == null, ErrorCode.NOT_FOUND_ERROR);
-        boolean result = appService.removeById(id);
+        boolean result = appService.deleteAppByAdmin(id);
         return ResultUtils.success(result);
     }
 
