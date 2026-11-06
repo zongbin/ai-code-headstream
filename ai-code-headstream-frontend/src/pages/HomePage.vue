@@ -174,13 +174,10 @@ const openDeployedApp = (app: API.AppVO) => {
 }
 
 /**
- * 编辑我自己的应用
+ * 重命名我自己的应用（接口调用在卡片内完成，这里同步列表数据）
  */
-const editMyApp = (app: API.AppVO) => {
-  if (!app.id) {
-    return
-  }
-  router.push(`/app/edit/${app.id}`)
+const renameMyApp = (app: API.AppVO, appName: string) => {
+  app.appName = appName
 }
 
 /**
@@ -259,7 +256,7 @@ const deleteMyApp = async (app: API.AppVO) => {
       @page-change="changeMyPage"
       @view-chat="openAppChat"
       @view-deploy="openDeployedApp"
-      @edit="editMyApp"
+      @rename="renameMyApp"
       @delete="deleteMyApp"
     />
 

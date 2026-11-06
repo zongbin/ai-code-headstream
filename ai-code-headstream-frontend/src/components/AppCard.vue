@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { message } from 'ant-design-vue'
 import { DeleteOutlined, EditOutlined, EllipsisOutlined } from '@ant-design/icons-vue'
 import { formatDate, getAppCoverUrl, isGoodApp, isPinnedApp } from '@/utils/app.ts'
+import { updateApp } from '@/api/appController.ts'
 
 const props = withDefaults(
   defineProps<{
@@ -52,11 +54,85 @@ const emit = defineEmits<{
   (e: 'view-chat', app: API.AppVO): void
   /** 查看部署后的作品 */
   (e: 'view-deploy', app: API.AppVO): void
-  /** 编辑应用 */
-  (e: 'edit', app: API.AppVO): void
+  /** 重命名成功 */
+  (e: 'rename', app: API.AppVO, appName: string): void
   /** 删除应用 */
   (e: 'delete', app: API.AppVO): void
 }>()
+
+/** 是否处于重命名编辑状态 */
+const renaming = ref(false)
+/** 重命名输入框的值 */
+const renameValue = ref('')
+/** 重命名保存中 */
+const saving = ref(false)
+/** 重命名输入框组件（只需暴露 focus 方法） */
+const renameInputRef = ref<{ focus?: () => void } | null>(null)
+/** 卡片展示的应用名称（重命名成功后本地同步，避免整页刷新） */
+const displayName = ref(props.app.appName ?? '')
+
+watch(
+  () => props.app.appName,
+  (val) => {
+    if (!renaming.value) {
+      displayName.value = val ?? ''
+    }
+  },
+)
+
+/**
+ * 开始重命名：把名称切换成输入框
+ */
+const startRename = async () => {
+  renaming.value = true
+  renameValue.value = props.app.appName ?? ''
+  await nextTick()
+  renameInputRef.value?.focus?.()
+}
+
+/**
+ * 取消重命名
+ */
+const cancelRename = () => {
+  renaming.value = false
+  renameValue.value = ''
+}
+
+/**
+ * 保存重命名：调用更新接口，成功后同步卡片名称
+ */
+const saveRename = async () => {
+  const appName = renameValue.value.trim()
+  if (!appName) {
+    message.warning('应用名称不能为空')
+    return
+  }
+  if (appName === props.app.appName) {
+    cancelRename()
+    return
+  }
+  if (!props.app.id) {
+    message.error('重命名失败，应用不存在')
+    return
+  }
+  saving.value = true
+  try {
+    const res = await updateApp({ id: props.app.id, appName })
+    if (res.data.code === 0) {
+      displayName.value = appName
+      message.success('重命名成功')
+      emit('rename', props.app, appName)
+      cancelRename()
+    } else {
+      message.error('重命名失败，' + res.data.message)
+    }
+  } catch (error) {
+    console.error('重命名失败', error)
+    message.error('重命名失败，请检查后端服务是否已启动')
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <template>
@@ -88,8 +164,35 @@ const emit = defineEmits<{
       </a-avatar>
       <div class="app-card__info">
         <div class="app-card__name-row">
-          <div class="app-card__name">{{ app.appName }}</div>
-          <a-tag v-if="app.label" color="blue" class="app-card__label">{{ app.label }}</a-tag>
+          <!-- 重命名状态：名称就地替换为输入框 -->
+          <template v-if="renaming">
+            <a-input
+              ref="renameInputRef"
+              v-model:value="renameValue"
+              class="app-card__rename-input"
+              size="small"
+              :maxlength="50"
+              placeholder="请输入应用名称"
+              @press-enter="saveRename"
+              @keydown.esc="cancelRename"
+            />
+            <a-button
+              type="primary"
+              size="small"
+              class="app-card__rename-btn"
+              :loading="saving"
+              @click="saveRename"
+            >
+              保存
+            </a-button>
+            <a-button size="small" class="app-card__rename-btn" :disabled="saving" @click="cancelRename">
+              取消
+            </a-button>
+          </template>
+          <template v-else>
+            <div class="app-card__name">{{ displayName }}</div>
+            <a-tag v-if="app.label" color="blue" class="app-card__label">{{ app.label }}</a-tag>
+          </template>
         </div>
         <div class="app-card__meta">
           <span class="app-card__author-name">{{ app.user?.userName ?? authorFallback }}</span>
@@ -103,9 +206,9 @@ const emit = defineEmits<{
               </a-button>
               <template #overlay>
                 <a-menu class="app-card__more-menu">
-                  <a-menu-item @click="emit('edit', app)">
+                  <a-menu-item @click="startRename">
                     <EditOutlined />
-                    编辑
+                    重命名
                   </a-menu-item>
                   <a-menu-item class="app-card__more-menu-item--danger">
                     <a-popconfirm
@@ -300,6 +403,15 @@ const emit = defineEmits<{
 .app-card__label {
   flex-shrink: 0;
   margin-right: 0;
+}
+
+.app-card__rename-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-card__rename-btn {
+  flex-shrink: 0;
 }
 
 .app-card__meta {

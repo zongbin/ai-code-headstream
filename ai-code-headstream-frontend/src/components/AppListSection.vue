@@ -45,8 +45,8 @@ const emit = defineEmits<{
   (e: 'view-chat', app: API.AppVO): void
   /** 查看部署后的作品 */
   (e: 'view-deploy', app: API.AppVO): void
-  /** 编辑应用 */
-  (e: 'edit', app: API.AppVO): void
+  /** 重命名应用 */
+  (e: 'rename', app: API.AppVO, appName: string): void
   /** 删除应用 */
   (e: 'delete', app: API.AppVO): void
 }>()
@@ -99,7 +99,7 @@ const onLabelChange = (value: string) => {
         :editable="editable"
         @view-chat="(item) => emit('view-chat', item)"
         @view-deploy="(item) => emit('view-deploy', item)"
-        @edit="(item) => emit('edit', item)"
+        @rename="(item, appName) => emit('rename', item, appName)"
         @delete="(item) => emit('delete', item)"
       />
     </div>
