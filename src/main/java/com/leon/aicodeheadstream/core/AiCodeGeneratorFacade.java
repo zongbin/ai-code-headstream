@@ -1,6 +1,7 @@
 package com.leon.aicodeheadstream.core;
 
 import com.leon.aicodeheadstream.ai.AiCodeGeneratorService;
+import com.leon.aicodeheadstream.ai.AiCodeGeneratorServiceFactory;
 import com.leon.aicodeheadstream.ai.model.HtmlCodeResult;
 import com.leon.aicodeheadstream.ai.model.MultiFileCodeResult;
 import com.leon.aicodeheadstream.core.parser.CodeParserExecutor;
@@ -8,6 +9,7 @@ import com.leon.aicodeheadstream.core.saver.CodeFileSaverExecutor;
 import com.leon.aicodeheadstream.exception.BusinessException;
 import com.leon.aicodeheadstream.exception.ErrorCode;
 import com.leon.aicodeheadstream.model.enums.CodeGenTypeEnum;
+import dev.langchain4j.spi.services.AiServicesFactory;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,7 +26,7 @@ import java.io.File;
 public class AiCodeGeneratorFacade {
 
     @Resource
-    private AiCodeGeneratorService aiCodeGeneratorService;
+    private AiCodeGeneratorServiceFactory aiCodeGeneratorServiceFactory;
 
     /**
      * 统一入口：根据类型生成并保存代码
@@ -37,6 +39,7 @@ public class AiCodeGeneratorFacade {
         if (codeGenTypeEnum == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "生成类型为空");
         }
+        AiCodeGeneratorService aiCodeGeneratorService = aiCodeGeneratorServiceFactory.getAiCodeGeneratorService(appId);
         return switch (codeGenTypeEnum) {
             case HTML -> {
                 HtmlCodeResult result = aiCodeGeneratorService.generateHtmlCode(userMessage);
@@ -63,6 +66,7 @@ public class AiCodeGeneratorFacade {
         if (codeGenTypeEnum == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "生成类型为空");
         }
+        AiCodeGeneratorService aiCodeGeneratorService = aiCodeGeneratorServiceFactory.getAiCodeGeneratorService(appId);
         return switch (codeGenTypeEnum) {
             case HTML -> {
                 Flux<String> result = aiCodeGeneratorService.generateHtmlCodeStream(userMessage);
@@ -92,11 +96,10 @@ public class AiCodeGeneratorFacade {
                     // 流式返回完成后保存代码
                     try {
                         String completeCode = codeBuilder.toString();
-                        log.info("completeCode:{}",completeCode);
                         Object parsedResult = CodeParserExecutor.execute(completeCode, codeGenTypeEnum);
                         // 保存代码到文件
                         File savedDir = CodeFileSaverExecutor.execute(parsedResult, codeGenTypeEnum, appId);
-                        log.info("保存成功，路径为：" + savedDir.getAbsolutePath());
+                        log.info("保存成功，路径为：{}", savedDir.getAbsolutePath());
                     } catch (Exception e) {
                         log.error("保存失败: {}", e.getMessage(), e);
                     }

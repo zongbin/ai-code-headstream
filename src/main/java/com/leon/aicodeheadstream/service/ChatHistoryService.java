@@ -8,6 +8,7 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
 import com.leon.aicodeheadstream.model.entity.ChatHistory;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 
 import java.util.List;
 
@@ -17,6 +18,8 @@ import java.util.List;
  * @author leon
  */
 public interface ChatHistoryService extends IService<ChatHistory> {
+
+    int loadChatHistoryToMemory(Long appId, MessageWindowChatMemory chatMemory, int maxCount);
 
     /**
      * 保存用户消息
