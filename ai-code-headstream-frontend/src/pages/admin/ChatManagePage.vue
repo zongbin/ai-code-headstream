@@ -10,12 +10,11 @@
           :min="1"
         />
       </a-form-item>
-      <a-form-item label="用户 ID">
-        <a-input-number
-          v-model:value="searchParams.userId"
-          placeholder="输入用户 ID"
-          style="width: 140px"
-          :min="1"
+      <a-form-item label="用户账号">
+        <a-input
+          v-model:value="searchParams.userAccount"
+          placeholder="输入用户账号"
+          style="width: 160px"
         />
       </a-form-item>
       <a-form-item label="消息类型">
@@ -36,7 +35,7 @@
       :data-source="data"
       :pagination="pagination"
       row-key="id"
-      :scroll="{ x: 1600 }"
+      :scroll="{ x: 1540 }"
       @change="doTableChange"
     >
       <template #bodyCell="{ column, record }">
@@ -55,8 +54,8 @@
             {{ record.appName ?? record.appId ?? '-' }}
           </a-typography-link>
         </template>
-        <template v-else-if="column.dataIndex === 'userName'">
-          {{ record.userName ?? record.userId ?? '-' }}
+        <template v-else-if="column.dataIndex === 'userAccount'">
+          {{ record.userAccount ?? '-' }}
         </template>
         <template v-else-if="column.dataIndex === 'createTime'">
           {{ formatDateTime(record.createTime) }}
@@ -108,14 +107,9 @@ const columns = [
     width: 420,
   },
   {
-    title: '用户 ID',
-    dataIndex: 'userId',
+    title: '用户账号',
+    dataIndex: 'userAccount',
     width: 180,
-  },
-  {
-    title: '用户昵称',
-    dataIndex: 'userName',
-    width: 140,
   },
   {
     title: '创建时间',
@@ -142,7 +136,7 @@ const {
   listChatHistoryPageByAdmin,
   {
     appId: undefined,
-    userId: undefined,
+    userAccount: undefined,
     messageType: undefined,
   },
   { errorTip: '获取对话历史列表失败' },

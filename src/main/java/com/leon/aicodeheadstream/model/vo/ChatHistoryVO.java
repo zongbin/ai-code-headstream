@@ -49,6 +49,11 @@ public class ChatHistoryVO implements Serializable {
     private Long userId;
 
     /**
+     * 创建用户账号
+     */
+    private String userAccount;
+
+    /**
      * 用户昵称
      */
     private String userName;

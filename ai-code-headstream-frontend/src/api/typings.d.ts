@@ -133,7 +133,7 @@ declare namespace API {
     sortField?: string
     sortOrder?: string
     appId?: number
-    userId?: number
+    userAccount?: string
     messageType?: string
   }
 
@@ -145,6 +145,7 @@ declare namespace API {
     appId?: number
     appName?: string
     userId?: number
+    userAccount?: string
     userName?: string
     createTime?: string
   }

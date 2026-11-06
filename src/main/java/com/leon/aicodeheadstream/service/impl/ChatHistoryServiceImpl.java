@@ -232,8 +232,14 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
         }
         QueryWrapper queryWrapper = QueryWrapper.create()
                 .eq("appId", chatHistoryQueryRequest.getAppId())
-                .eq("userId", chatHistoryQueryRequest.getUserId())
                 .eq("messageType", StrUtil.isBlank(messageType) ? null : messageType);
+        // 按用户账号筛选：先查账号对应的用户，再按用户 id 过滤
+        // （账号不存在时用不可能匹配的 id，保证查不到任何记录，而不是忽略条件查出全部）
+        String userAccount = chatHistoryQueryRequest.getUserAccount();
+        if (StrUtil.isNotBlank(userAccount)) {
+            User user = userService.getOne(QueryWrapper.create().eq("userAccount", userAccount).limit(1));
+            queryWrapper.eq("userId", user == null ? -1L : user.getId());
+        }
         String sortField = chatHistoryQueryRequest.getSortField();
         String sortOrder = chatHistoryQueryRequest.getSortOrder();
         if (StrUtil.isNotBlank(sortField) && SORTABLE_FIELDS.contains(sortField)) {
@@ -281,7 +287,8 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
         }
         // 1. 查询应用名称
         Map<Long, String> finalAppNameMap = appNameMap == null ? getAppNameMap(chatHistoryList) : appNameMap;
-        // 2. 查询用户昵称
+        // 2. 查询用户账号与昵称
+        Map<Long, String> userAccountMap = getUserAccountMap(chatHistoryList);
         Map<Long, String> userNameMap = getUserNameMap(chatHistoryList);
         // 3. 转换
         return chatHistoryList.stream()
@@ -291,8 +298,9 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
                     // 消息类型描述
                     MessageTypeEnum messageTypeEnum = MessageTypeEnum.getEnumByValue(chatHistory.getMessageType());
                     chatHistoryVO.setMessageTypeText(messageTypeEnum == null ? chatHistory.getMessageType() : messageTypeEnum.getText());
-                    // 应用名称、用户昵称
+                    // 应用名称、用户账号与昵称
                     chatHistoryVO.setAppName(finalAppNameMap.get(chatHistory.getAppId()));
+                    chatHistoryVO.setUserAccount(userAccountMap.get(chatHistory.getUserId()));
                     chatHistoryVO.setUserName(userNameMap.get(chatHistory.getUserId()));
                     return chatHistoryVO;
                 })
@@ -318,6 +326,26 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
         Map<Long, String> appNameMap = new HashMap<>();
         appMapper.selectListByQuery(queryWrapper).forEach(app -> appNameMap.put(app.getId(), app.getAppName()));
         return appNameMap;
+    }
+
+    /**
+     * 查询对话历史涉及的用户账号
+     *
+     * @param chatHistoryList 对话历史列表
+     * @return 用户id与用户账号的映射
+     */
+    private Map<Long, String> getUserAccountMap(List<ChatHistory> chatHistoryList) {
+        Set<Long> userIds = chatHistoryList.stream()
+                .map(ChatHistory::getUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (CollUtil.isEmpty(userIds)) {
+            return Map.of();
+        }
+        // 用户账号允许为空，用 HashMap 承接，避免 Collectors.toMap 遇到 null 值报错
+        Map<Long, String> userAccountMap = new HashMap<>();
+        userService.listByIds(userIds).forEach(user -> userAccountMap.put(user.getId(), user.getUserAccount()));
+        return userAccountMap;
     }
 
     /**
