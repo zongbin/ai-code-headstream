@@ -89,9 +89,11 @@ public class AiCodeGeneratorFacade {
                     codeBuilder.append(chunk);
                 })
                 // 流结束后再解析并保存代码。
-                // 这里用 defer + thenMany（而不是 doOnComplete），是为了让保存失败以「流错误」的形式抛出，
+                // 这里用 defer + concatWith（而不是 doOnComplete），是为了让保存失败以「流错误」的形式抛出，
                 // 这样错误才能被上游感知并通知到前端，而不是仅仅打印一行日志。
-                .thenMany(Flux.defer(() -> {
+                // 注意必须用 concatWith 而不是 thenMany/thenWith：它们会丢弃上游的数据元素，
+                // 导致代码片段虽然被 doOnNext 收集到、文件也保存成功了，但前端一个字符都收不到。
+                .concatWith(Flux.defer(() -> {
                     try {
                         String completeCode = codeBuilder.toString();
                         Object parsedResult = CodeParserExecutor.execute(completeCode, codeGenTypeEnum);
@@ -103,7 +105,7 @@ public class AiCodeGeneratorFacade {
                         // 转换为业务异常，携带可读的错误信息，便于前端展示
                         throw new BusinessException(ErrorCode.SYSTEM_ERROR, "代码保存失败：" + e.getMessage());
                     }
-                    return Flux.empty();
+                    return Flux.<String>empty();
                 }));
     }
 
