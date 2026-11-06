@@ -19,7 +19,9 @@ import {
   getAppVoById,
   listMyAppVoByPage,
 } from '@/api/appController.ts'
-import { getAppPreviewUrl } from '@/utils/app.ts'
+import { formatDateTime, getAppPreviewUrl } from '@/utils/app.ts'
+import { MESSAGE_TYPE_USER } from '@/utils/chatHistory.ts'
+import { useChatHistory } from '@/composables/useChatHistory.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import ACCESS_ENUM from '@/access/accessEnum.ts'
 import ChatMessageContent from '@/components/ChatMessageContent.vue'
@@ -30,10 +32,12 @@ import ToolButton from '@/components/ToolButton.vue'
 import siteLogo from '@/assets/logo.png'
 
 interface ChatMessage {
-  id: number
+  id: string
   role: 'user' | 'ai'
   content: string
   streaming?: boolean
+  /** 消息创建时间（历史消息才有） */
+  createTime?: string
 }
 
 const route = useRoute()
@@ -60,12 +64,12 @@ const isAdmin = computed(() => loginUserStore.loginUser.userRole === ACCESS_ENUM
 // 是否可以管理（修改/删除）该应用：仅本人或管理员
 const canManage = computed(() => isOwner.value || isAdmin.value)
 
+// 是否可以查看对话历史：后端只允许应用作者和管理员查看
+const canViewHistory = computed(() => isOwner.value || isAdmin.value)
+
 // 应用详情悬浮窗
 const detailVisible = ref(false)
 const deleting = ref(false)
-
-// 从应用卡片进入时带 view=1，只查看对话，不自动发送初始提示词
-const isViewMode = computed(() => route.query.view === '1')
 
 // 我的应用列表（用于顶部切换应用）
 const myApps = ref<API.AppVO[]>([])
@@ -80,9 +84,35 @@ const appOptions = computed(() => {
   return options
 })
 
-// 消息列表
-const messages = ref<ChatMessage[]>([])
-let messageId = 0
+// 对话历史（游标分页加载，后端只允许应用作者和管理员查看）
+const {
+  records: historyRecords,
+  hasMore: hasMoreHistory,
+  loading: historyLoading,
+  loadingMore: historyLoadingMore,
+  loadHistory,
+  loadMoreHistory,
+  resetHistory,
+} = useChatHistory(() => appId.value)
+
+// 历史消息（按消息创建时间升序）
+const historyMessages = computed<ChatMessage[]>(() =>
+  historyRecords.value.map((record) => ({
+    id: `history-${record.id}`,
+    role: record.messageType === MESSAGE_TYPE_USER ? 'user' : 'ai',
+    content: record.message ?? '',
+    createTime: record.createTime,
+  })),
+)
+
+// 本次会话中新产生的消息
+const liveMessages = ref<ChatMessage[]>([])
+// 对话区域展示的消息：历史消息在前，新消息在后
+const messages = computed<ChatMessage[]>(() => [...historyMessages.value, ...liveMessages.value])
+// 本次会话中新消息的自增 id（历史消息用后端 id，两者不会冲突）
+let localMessageId = 0
+// 初始化流程的序号，切换应用时递增，丢弃已经过期的初始化请求
+let initSeq = 0
 
 // 输入框内容
 const inputText = ref('')
@@ -217,20 +247,20 @@ const sendMessage = async (text: string) => {
   }
   const seq = ++requestSeq
   // 用户消息
-  messages.value.push({
-    id: ++messageId,
+  liveMessages.value.push({
+    id: `local-${++localMessageId}`,
     role: 'user',
     content,
   })
-  // AI 消息占位。必须通过 messages 里的响应式代理改内容，
+  // AI 消息占位。必须通过 liveMessages 里的响应式代理改内容，
   // 直接改 push 之前的普通对象不会触发视图更新，整段会等到结束才一次性出现。
-  messages.value.push({
-    id: ++messageId,
+  liveMessages.value.push({
+    id: `local-${++localMessageId}`,
     role: 'ai',
     content: '',
     streaming: true,
   })
-  const aiMessage = messages.value[messages.value.length - 1]
+  const aiMessage = liveMessages.value[liveMessages.value.length - 1]
   inputText.value = ''
   streaming.value = true
   await scrollToBottom()
@@ -301,8 +331,11 @@ const sendMessage = async (text: string) => {
  * 展示生成后的网页效果
  *
  * 后端在流式响应结束后才把代码写入磁盘，这里稍微延迟一下再加载预览，避免文件还没落盘。
+ * 进入页面时网页已经生成好了，可以立即展示。
+ *
+ * @param delay 延迟展示的毫秒数
  */
-const showPreview = () => {
+const showPreview = (delay = 800) => {
   const seq = requestSeq
   const url = getAppPreviewUrl(appInfo.value.codeGenType, appId.value)
   if (!url) {
@@ -314,7 +347,7 @@ const showPreview = () => {
     }
     previewUrl.value = url
     previewReady.value = true
-  }, 800)
+  }, delay)
 }
 
 /**
@@ -418,10 +451,12 @@ const openDeployUrl = () => {
 
 /**
  * 自动把初始提示词作为第一条消息发送给 AI。
- * 从应用卡片进入（带 view=1）时只查看对话，不自动发送。
+ *
+ * 只有自己的作品、且当前应用还没有任何对话历史时才自动发送，
+ * 有历史记录时直接展示历史消息，避免重复生成。
  */
 const autoSendInitPrompt = async () => {
-  if (isViewMode.value) {
+  if (!isOwner.value || historyRecords.value.length > 0) {
     return
   }
   const initPrompt = appInfo.value.initPrompt
@@ -430,23 +465,64 @@ const autoSendInitPrompt = async () => {
   }
 }
 
-watch(appId, async () => {
+/**
+ * 加载更早的对话历史
+ */
+const doLoadMoreHistory = async () => {
+  await loadMoreHistory()
+  await nextTick()
+  // 加载的是更早的消息，滚动到顶部查看
+  if (messagesRef.value) {
+    messagesRef.value.scrollTop = 0
+  }
+}
+
+/**
+ * 初始化当前应用：加载应用信息 + 对话历史
+ *
+ * 切换应用时可能并发触发多次，用序号丢弃已经过期的初始化流程，
+ * 避免上一次请求的结果覆盖新应用的对话历史。
+ */
+const initApp = async () => {
+  const seq = ++initSeq
   // 切换应用时重置状态
   cancelStreaming()
-  messages.value = []
+  liveMessages.value = []
   inputText.value = ''
   streaming.value = false
   previewReady.value = false
   previewUrl.value = ''
+  resetHistory()
   await loadAppInfo()
+  if (seq !== initSeq) {
+    return
+  }
+  // 只有应用作者和管理员可以查看对话历史
+  if (canViewHistory.value) {
+    await loadHistory()
+    if (seq !== initSeq) {
+      return
+    }
+    // 历史消息按升序展示，有记录时滚动到最新的一条
+    if (historyRecords.value.length > 0) {
+      await scrollToBottom()
+    }
+    // 已有至少 2 条对话记录，说明网站已经生成过，直接展示网页效果
+    if (historyRecords.value.length >= 2) {
+      showPreview(0)
+    }
+  }
   // 自动把初始提示词作为第一条消息发送给 AI
   await autoSendInitPrompt()
+}
+
+watch(appId, async () => {
+  await initApp()
 })
 
 onMounted(async () => {
-  await loadAppInfo()
+  await initApp()
   await loadMyApps()
-  await autoSendInitPrompt()
 })
 
 onBeforeUnmount(() => {
@@ -493,7 +569,20 @@ onBeforeUnmount(() => {
       <!-- 左侧：对话区域 -->
       <div class="chat-page__chat">
         <div ref="messagesRef" class="chat-page__messages">
-          <a-empty v-if="messages.length === 0" description="描述你的想法，开始生成网站" />
+          <a-empty
+            v-if="messages.length === 0 && !historyLoading"
+            description="描述你的想法，开始生成网站"
+          />
+          <!-- 历史消息的加载状态与「加载更多」入口 -->
+          <div v-if="historyLoading" class="chat-page__history">
+            <a-spin size="small" />
+            <span>正在加载对话历史...</span>
+          </div>
+          <div v-else-if="hasMoreHistory" class="chat-page__history">
+            <a-button type="link" :loading="historyLoadingMore" @click="doLoadMoreHistory">
+              加载更多历史消息
+            </a-button>
+          </div>
           <div
             v-for="item in messages"
             :key="item.id"
@@ -521,6 +610,10 @@ onBeforeUnmount(() => {
                 </span>
                 <span v-if="item.streaming && !item.content" class="chat-message__cursor" />
               </template>
+              <!-- 历史消息展示创建时间 -->
+              <div v-if="item.createTime" class="chat-message__time">
+                {{ formatDateTime(item.createTime) }}
+              </div>
             </div>
           </div>
         </div>
@@ -729,6 +822,17 @@ onBeforeUnmount(() => {
   overflow-y: auto;
 }
 
+/* 历史消息加载状态与「加载更多」入口 */
+.chat-page__history {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
 .chat-message {
   display: flex;
   gap: 8px;
@@ -766,6 +870,17 @@ onBeforeUnmount(() => {
   margin: 0;
   line-height: 1.7;
   white-space: pre-wrap;
+}
+
+/* 消息创建时间（历史消息） */
+.chat-message__time {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.35);
+}
+
+.chat-message--user .chat-message__time {
+  text-align: right;
 }
 
 .chat-message__typing {

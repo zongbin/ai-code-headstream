@@ -12,6 +12,7 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.SignalType;
 
 import java.io.File;
 
@@ -83,23 +84,26 @@ public class AiCodeGeneratorFacade {
     private Flux<String> processStream(Flux<String> result, CodeGenTypeEnum codeGenTypeEnum, Long appId) {
         // 当流式返回生成代码完成后，再保存代码
         StringBuilder codeBuilder = new StringBuilder();
+        // 实时收集代码片段
         return result
-                .doOnNext(chunk -> {
-                    // 实时收集代码片段
-                    codeBuilder.append(chunk);
-                    log.debug("Received chunk: {}", chunk);
-                })
+                .doOnNext(codeBuilder::append)
+                .doOnError(e -> log.error("流错误，已收集 {} 字符", codeBuilder.length(), e))
                 .doOnComplete(() -> {
                     // 流式返回完成后保存代码
                     try {
                         String completeCode = codeBuilder.toString();
-                        log.debug("completeCode:{}",completeCode);
+                        log.info("completeCode:{}",completeCode);
                         Object parsedResult = CodeParserExecutor.execute(completeCode, codeGenTypeEnum);
                         // 保存代码到文件
                         File savedDir = CodeFileSaverExecutor.execute(parsedResult, codeGenTypeEnum, appId);
                         log.info("保存成功，路径为：" + savedDir.getAbsolutePath());
                     } catch (Exception e) {
                         log.error("保存失败: {}", e.getMessage(), e);
+                    }
+                })
+                .doFinally(signal -> {
+                    if (signal == SignalType.CANCEL) {
+                        log.warn("流被取消，已收集 {} 字符，未保存", codeBuilder.length());
                     }
                 });
     }

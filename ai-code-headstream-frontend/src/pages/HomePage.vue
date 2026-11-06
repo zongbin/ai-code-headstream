@@ -152,13 +152,13 @@ const useQuickPrompt = (prompt: string) => {
 
 /**
  * 打开应用对话页（查看详情）
- * 带 view=1 表示只查看，不自动发送初始提示词
+ * 页面会自行判断是否需要自动发送初始提示词，这里不需要额外传参
  */
 const openAppChat = (app: API.AppVO) => {
   if (!app.id) {
     return
   }
-  router.push(`/app/chat/${app.id}?view=1`)
+  router.push(`/app/chat/${app.id}`)
 }
 
 /**
