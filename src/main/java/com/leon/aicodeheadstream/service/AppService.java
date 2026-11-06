@@ -11,6 +11,7 @@ import com.mybatisflex.core.service.IService;
 import com.leon.aicodeheadstream.model.entity.App;
 import reactor.core.publisher.Flux;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -73,6 +74,8 @@ public interface AppService extends IService<App> {
      * @return 是否成功
      */
     boolean deleteAppByAdmin(Long id);
+
+
 
     /**
      * 管理员更新应用（名称、封面、优先级、可见状态）

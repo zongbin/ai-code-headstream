@@ -20,6 +20,7 @@ import com.leon.aicodeheadstream.model.enums.AppLabelEnum;
 import com.leon.aicodeheadstream.model.enums.CodeGenTypeEnum;
 import com.leon.aicodeheadstream.model.vo.AppVO;
 import com.leon.aicodeheadstream.model.vo.UserVO;
+import com.leon.aicodeheadstream.service.ChatHistoryService;
 import com.leon.aicodeheadstream.service.UserService;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
@@ -28,10 +29,12 @@ import com.leon.aicodeheadstream.mapper.AppMapper;
 import com.leon.aicodeheadstream.service.AppService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
 import java.io.File;
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +62,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     private UserService userService;
     @Resource
     private AiCodeGeneratorFacade aiCodeGeneratorFacade;
+    @Resource
+    private ChatHistoryService chatHistoryService;
 
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser) {
@@ -79,7 +84,56 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "不支持的代码生成类型");
         }
         // 5. 调用 AI 生成代码
-        return aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
+        return generateCodeStreamWithChatHistory(appId, message, codeGenTypeEnum, loginUser);
+    }
+
+    /**
+     * 调用 AI 生成代码，并把对话内容记录到对话历史中
+     *
+     * <p>用户发送消息时先保存用户消息；AI 成功回复后保存 AI 消息；
+     * AI 回复失败时保存错误信息，保证对话的完整性。</p>
+     *
+     * @param appId           应用id
+     * @param message         用户消息
+     * @param codeGenTypeEnum 代码生成类型
+     * @param loginUser       当前登录用户
+     * @return 生成结果流
+     */
+    private Flux<String> generateCodeStreamWithChatHistory(Long appId, String message,
+                                                           CodeGenTypeEnum codeGenTypeEnum, User loginUser) {
+        Long userId = loginUser.getId();
+        // 1. 保存用户消息
+        chatHistoryService.saveUserMessage(appId, userId, message);
+        // 2. 调用 AI 生成代码（流式）
+        Flux<String> content;
+        try {
+            content = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
+        } catch (Exception e) {
+            // AI 调用直接失败时，记录错误信息
+            chatHistoryService.saveErrorMessage(appId, userId, buildAiErrorMessage(e));
+            throw e;
+        }
+        // 3. 收集 AI 回复内容，流正常结束时保存 AI 消息，流异常结束时保存错误信息
+        StringBuilder aiMessageBuilder = new StringBuilder();
+        return content
+                .doOnNext(aiMessageBuilder::append)
+                .doOnComplete(() -> chatHistoryService.saveAiMessage(appId, userId, aiMessageBuilder.toString()))
+                .doOnError(e -> chatHistoryService.saveErrorMessage(appId, userId, buildAiErrorMessage(e)));
+    }
+
+    /**
+     * 构造 AI 生成失败的错误信息
+     *
+     * @param e 异常
+     * @return 错误信息
+     */
+    private String buildAiErrorMessage(Throwable e) {
+        String errorMessage = e == null ? null : e.getMessage();
+        // 部分异常没有错误信息，退化为异常类型，避免记录成 null
+        if (StrUtil.isBlank(errorMessage)) {
+            errorMessage = e == null ? "未知错误" : e.getClass().getSimpleName();
+        }
+        return "AI 生成失败：" + errorMessage;
     }
 
     @Override
@@ -126,7 +180,6 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         // 9. 返回可访问的 URL
         return String.format("%s/%s/", AppConstant.CODE_DEPLOY_HOST, deployKey);
     }
-
 
 
     @Override
@@ -218,6 +271,18 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         return true;
     }
 
+    @Override
+    public boolean removeById(@NonNull Serializable id) {
+        long appId = Long.parseLong(id.toString());
+        try {
+            chatHistoryService.removeByAppId(appId);
+        } catch (Exception e) {
+            log.error("删除应用对话历史失败：{}", e.getMessage(), e);
+        }
+        return super.removeById(id);
+    }
+
+
     /**
      * 清理应用产生的临时文件：代码生成目录（{codeGenType}_{appId}）与部署目录（{deployKey}）。
      * 清理失败只记录日志，不影响应用本身的删除结果。
@@ -244,8 +309,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     /**
      * 删除临时目录（不存在时忽略）
      *
-     * @param rootDir  根目录
-     * @param dirName  目录名
+     * @param rootDir 根目录
+     * @param dirName 目录名
      */
     private void delTempDir(String rootDir, String dirName) {
         String dirPath = rootDir + File.separator + dirName;

@@ -53,13 +53,20 @@ create table app
     INDEX idx_label (label)              -- 提升基于标签的查询性能
 ) comment '应用' collate = utf8mb4_unicode_ci;
 
--- 已存在的数据库执行此脚本，为应用表新增可见状态字段（历史数据默认为私有）
--- alter table app
---     add column visible tinyint default 0 not null comment '可见状态：0-私有，1-公开' after priority,
---     add index idx_visible (visible);
+-- 对话历史表
+create table chat_history
+(
+    id          bigint auto_increment comment 'id' primary key,
+    message     mediumtext                         not null comment '消息',
+    messageType varchar(32)                        not null comment '消息类型：user-用户消息，ai-AI 回复',
+    appId       bigint                             not null comment '应用id',
+    userId      bigint                             not null comment '创建用户id',
+    createTime  datetime default CURRENT_TIMESTAMP not null comment '创建时间',
+    updateTime  datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
+    isDelete    tinyint  default 0                 not null comment '是否删除',
+    INDEX idx_appId (appId),                       -- 提升基于应用的查询性能
+    INDEX idx_createTime (createTime),             -- 提升基于时间的查询性能
+    INDEX idx_appId_createTime (appId, createTime) -- 游标查询核心索引
+) comment '对话历史' collate = utf8mb4_unicode_ci;
 
--- 已存在的数据库执行此脚本，为应用表新增标签字段（历史数据默认为空）
--- alter table app
---     add column label varchar(32) null comment '应用标签：工具/网站/数据分析/活动页面/管理平台/用户应用/个人管理/游戏' after visible,
---     add index idx_label (label);
 
