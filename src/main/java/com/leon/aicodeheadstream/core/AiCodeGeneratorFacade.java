@@ -87,11 +87,13 @@ public class AiCodeGeneratorFacade {
                 .doOnNext(chunk -> {
                     // 实时收集代码片段
                     codeBuilder.append(chunk);
+                    log.debug("Received chunk: {}", chunk);
                 })
                 .doOnComplete(() -> {
                     // 流式返回完成后保存代码
                     try {
                         String completeCode = codeBuilder.toString();
+                        log.debug("completeCode:{}",completeCode);
                         Object parsedResult = CodeParserExecutor.execute(completeCode, codeGenTypeEnum);
                         // 保存代码到文件
                         File savedDir = CodeFileSaverExecutor.execute(parsedResult, codeGenTypeEnum, appId);

@@ -192,6 +192,21 @@ const openPreview = () => {
 
 
 /**
+ * 把异常转换成给用户看的错误信息
+ *
+ * appChat 里已经把后端的业务失败原因（如“无权限访问该应用”）转成了可读文案，
+ * 直接展示即可；流进行中失败时后端会断开连接，浏览器抛出的信息没有业务含义，
+ * 统一提示重试。
+ */
+const getErrorDetail = (error: unknown) => {
+  const detail = (error as Error)?.message || ''
+  if (!detail || /network error|failed to fetch|load failed|terminated/i.test(detail)) {
+    return '连接中断，请稍后重试'
+  }
+  return detail
+}
+
+/**
  * 发送消息并接收 AI 流式回复
  * @param text 用户消息内容
  */
@@ -255,8 +270,8 @@ const sendMessage = async (text: string) => {
     if ((error as Error)?.name === 'AbortError') {
       printer.stop()
     } else {
-      // 后端通过 SSE 推送的错误信息优先展示，便于用户知道具体原因
-      const detail = (error as Error)?.message || '请稍后重试'
+      // 后端返回的具体原因（如无权限、应用不存在）直接展示给用户
+      const detail = getErrorDetail(error)
       const tip = aiMessage?.content
         ? `\n\n> 生成失败：${detail}`
         : `> 生成失败：${detail}`
