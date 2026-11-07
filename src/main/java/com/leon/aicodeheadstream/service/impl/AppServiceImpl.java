@@ -8,6 +8,8 @@ import cn.hutool.core.util.StrUtil;
 import com.leon.aicodeheadstream.constant.AppConstant;
 import com.leon.aicodeheadstream.constant.UserConstant;
 import com.leon.aicodeheadstream.core.AiCodeGeneratorFacade;
+import com.leon.aicodeheadstream.core.builder.VueProjectBuilder;
+import com.leon.aicodeheadstream.core.handler.StreamHandlerExecutor;
 import com.leon.aicodeheadstream.exception.BusinessException;
 import com.leon.aicodeheadstream.exception.ErrorCode;
 import com.leon.aicodeheadstream.exception.ThrowUtils;
@@ -17,6 +19,7 @@ import com.leon.aicodeheadstream.model.dto.app.AppQueryRequest;
 import com.leon.aicodeheadstream.model.dto.app.AppUpdateRequest;
 import com.leon.aicodeheadstream.model.entity.User;
 import com.leon.aicodeheadstream.model.enums.AppLabelEnum;
+import com.leon.aicodeheadstream.model.enums.ChatHistoryMessageTypeEnum;
 import com.leon.aicodeheadstream.model.enums.CodeGenTypeEnum;
 import com.leon.aicodeheadstream.model.vo.AppVO;
 import com.leon.aicodeheadstream.model.vo.UserVO;
@@ -64,6 +67,10 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     private AiCodeGeneratorFacade aiCodeGeneratorFacade;
     @Resource
     private ChatHistoryService chatHistoryService;
+    @Resource
+    private StreamHandlerExecutor streamHandlerExecutor;
+    @Resource
+    private VueProjectBuilder vueProjectBuilder;
 
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser) {
@@ -83,58 +90,14 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         if (codeGenTypeEnum == null) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "不支持的代码生成类型");
         }
-        // 5. 调用 AI 生成代码
-        return generateCodeStreamWithChatHistory(appId, message, codeGenTypeEnum, loginUser);
+        // 5. 保存用户消息
+        chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER, loginUser.getId());
+        // 6. 调用 AI 生成代码（流式）
+        Flux<String> codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
+        // 7. 收集 AI 回复内容，流正常结束时保存 AI 消息，流异常结束时保存错误信息
+        return streamHandlerExecutor.doExecute(codeStream, chatHistoryService, appId, loginUser, codeGenTypeEnum);
     }
 
-    /**
-     * 调用 AI 生成代码，并把对话内容记录到对话历史中
-     *
-     * <p>用户发送消息时先保存用户消息；AI 成功回复后保存 AI 消息；
-     * AI 回复失败时保存错误信息，保证对话的完整性。</p>
-     *
-     * @param appId           应用id
-     * @param message         用户消息
-     * @param codeGenTypeEnum 代码生成类型
-     * @param loginUser       当前登录用户
-     * @return 生成结果流
-     */
-    private Flux<String> generateCodeStreamWithChatHistory(Long appId, String message,
-                                                           CodeGenTypeEnum codeGenTypeEnum, User loginUser) {
-        Long userId = loginUser.getId();
-        // 1. 保存用户消息
-        chatHistoryService.saveUserMessage(appId, userId, message);
-        // 2. 调用 AI 生成代码（流式）
-        Flux<String> content;
-        try {
-            content = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
-        } catch (Exception e) {
-            // AI 调用直接失败时，记录错误信息
-            chatHistoryService.saveErrorMessage(appId, userId, buildAiErrorMessage(e));
-            throw e;
-        }
-        // 3. 收集 AI 回复内容，流正常结束时保存 AI 消息，流异常结束时保存错误信息
-        StringBuilder aiMessageBuilder = new StringBuilder();
-        return content
-                .doOnNext(aiMessageBuilder::append)
-                .doOnComplete(() -> chatHistoryService.saveAiMessage(appId, userId, aiMessageBuilder.toString()))
-                .doOnError(e -> chatHistoryService.saveErrorMessage(appId, userId, buildAiErrorMessage(e)));
-    }
-
-    /**
-     * 构造 AI 生成失败的错误信息
-     *
-     * @param e 异常
-     * @return 错误信息
-     */
-    private String buildAiErrorMessage(Throwable e) {
-        String errorMessage = e == null ? null : e.getMessage();
-        // 部分异常没有错误信息，退化为异常类型，避免记录成 null
-        if (StrUtil.isBlank(errorMessage)) {
-            errorMessage = e == null ? "未知错误" : e.getClass().getSimpleName();
-        }
-        return "AI 生成失败：" + errorMessage;
-    }
 
     @Override
     public String deployApp(Long appId, User loginUser) {
@@ -161,9 +124,22 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         // 6. 检查源目录是否存在
         File sourceDir = new File(sourceDirPath);
         if (!sourceDir.exists() || !sourceDir.isDirectory()) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "应用代码不存在，请先生成代码");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, String.format("应用代码不存在，请先生成代码。path:%s", sourceDirPath));
         }
-        // 7. 复制文件到部署目录
+        // 7. Vue 项目特殊处理：执行构建
+        CodeGenTypeEnum codeGenTypeEnum = CodeGenTypeEnum.getEnumByValue(codeGenType);
+        if (codeGenTypeEnum == CodeGenTypeEnum.VUE_PROJECT) {
+            // Vue 项目需要构建
+            boolean buildSuccess = vueProjectBuilder.buildProject(sourceDirPath);
+            ThrowUtils.throwIf(!buildSuccess, ErrorCode.SYSTEM_ERROR, "Vue 项目构建失败，请检查代码和依赖");
+            // 检查 dist 目录是否存在
+            File distDir = new File(sourceDirPath, "dist");
+            ThrowUtils.throwIf(!distDir.exists(), ErrorCode.SYSTEM_ERROR, "Vue 项目构建完成但未生成 dist 目录");
+            // 将 dist 目录作为部署源
+            sourceDir = distDir;
+            log.info("Vue 项目构建成功，将部署 dist 目录: {}", distDir.getAbsolutePath());
+        }
+        // 8. 复制文件到部署目录
         String deployDirPath = AppConstant.CODE_DEPLOY_ROOT_DIR + File.separator + deployKey;
         try {
             FileUtil.copyContent(sourceDir, new File(deployDirPath), true);
@@ -197,7 +173,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         app.setAppName(appName);
         app.setInitPrompt(initPrompt);
         // 暂时用这个
-        app.setCodeGenType(CodeGenTypeEnum.MULTI_FILE.getValue());
+        app.setCodeGenType(CodeGenTypeEnum.VUE_PROJECT.getValue());
         app.setUserId(loginUser.getId());
         app.setPriority(AppConstant.DEFAULT_APP_PRIORITY);
         // 应用创建时默认为私有，用户可在应用修改页面调整为公开

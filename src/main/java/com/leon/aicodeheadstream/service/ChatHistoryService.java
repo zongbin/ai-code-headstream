@@ -3,6 +3,7 @@ package com.leon.aicodeheadstream.service;
 import com.leon.aicodeheadstream.model.dto.chat.ChatHistoryAppQueryRequest;
 import com.leon.aicodeheadstream.model.dto.chat.ChatHistoryQueryRequest;
 import com.leon.aicodeheadstream.model.entity.User;
+import com.leon.aicodeheadstream.model.enums.ChatHistoryMessageTypeEnum;
 import com.leon.aicodeheadstream.model.vo.ChatHistoryVO;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
@@ -19,36 +20,30 @@ import java.util.List;
  */
 public interface ChatHistoryService extends IService<ChatHistory> {
 
+    /**
+     * 从数据库加载历史对话到 AI 聊天内存中
+     *
+     * <p>按时间正序（先旧后新）将指定应用的历史对话记录加载到 {@link MessageWindowChatMemory}，
+     * 用于为 AI 对话提供上下文。加载前会先清空 chatMemory，防止重复加载。
+     * 只加载 USER 和 AI 类型的消息，加载失败时返回 0，不影响系统正常运行。</p>
+     *
+     * @param appId     应用 ID，用于查询该应用的历史对话
+     * @param chatMemory LangChain4j 的消息窗口内存，加载后会被历史消息填充
+     * @param maxCount  最多加载的历史消息条数
+     * @return 成功加载的消息条数；加载失败或无历史记录时返回 0
+     */
     int loadChatHistoryToMemory(Long appId, MessageWindowChatMemory chatMemory, int maxCount);
 
     /**
-     * 保存用户消息
+     * 保存对话消息
      *
-     * @param appId   应用id
-     * @param userId  用户id
-     * @param message 消息内容
+     * @param appId                       应用id
+     * @param message                     消息内容
+     * @param chatHistoryMessageTypeEnum  消息类型枚举（USER/AI/SYSTEM等）
+     * @param userId                      用户id
      */
-    void saveUserMessage(Long appId, Long userId, String message);
+    void addChatMessage(Long appId , String message, ChatHistoryMessageTypeEnum chatHistoryMessageTypeEnum, Long userId);
 
-    /**
-     * 保存 AI 回复
-     *
-     * @param appId   应用id
-     * @param userId  用户id
-     * @param message AI 回复内容
-     */
-    void saveAiMessage(Long appId, Long userId, String message);
-
-    /**
-     * 保存 AI 生成失败时的错误信息，保证对话的完整性
-     *
-     * <p>消息类型仍为 AI（ai），只是消息内容为错误描述。</p>
-     *
-     * @param appId        应用id
-     * @param userId       用户id
-     * @param errorMessage 错误信息
-     */
-    void saveErrorMessage(Long appId, Long userId, String errorMessage);
 
     /**
      * 分页查看某个应用的对话历史（游标分页，按时间正序返回）

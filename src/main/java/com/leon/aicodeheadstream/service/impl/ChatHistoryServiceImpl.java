@@ -14,7 +14,7 @@ import com.leon.aicodeheadstream.model.dto.chat.ChatHistoryQueryRequest;
 import com.leon.aicodeheadstream.model.entity.App;
 import com.leon.aicodeheadstream.model.entity.ChatHistory;
 import com.leon.aicodeheadstream.model.entity.User;
-import com.leon.aicodeheadstream.model.enums.MessageTypeEnum;
+import com.leon.aicodeheadstream.model.enums.ChatHistoryMessageTypeEnum;
 import com.leon.aicodeheadstream.model.vo.ChatHistoryPageVO;
 import com.leon.aicodeheadstream.model.vo.ChatHistoryVO;
 import com.leon.aicodeheadstream.service.ChatHistoryService;
@@ -92,9 +92,9 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
             // 先清理历史缓存，防止重复加载
             chatMemory.clear();
             for (ChatHistory history : historyList) {
-                if (MessageTypeEnum.USER.getValue().equals(history.getMessageType())) {
+                if (ChatHistoryMessageTypeEnum.USER.getValue().equals(history.getMessageType())) {
                     chatMemory.add(UserMessage.from(history.getMessage()));
-                } else if (MessageTypeEnum.AI.getValue().equals(history.getMessageType())) {
+                } else if (ChatHistoryMessageTypeEnum.AI.getValue().equals(history.getMessageType())) {
                     chatMemory.add(AiMessage.from(history.getMessage()));
                 }
                 loadedCount++;
@@ -110,30 +110,7 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
 
 
     @Override
-    public void saveUserMessage(Long appId, Long userId, String message) {
-        saveMessage(appId, userId, message, MessageTypeEnum.USER);
-    }
-
-    @Override
-    public void saveAiMessage(Long appId, Long userId, String message) {
-        saveMessage(appId, userId, message, MessageTypeEnum.AI);
-    }
-
-    @Override
-    public void saveErrorMessage(Long appId, Long userId, String errorMessage) {
-        // AI 生成失败同样属于 AI 回复，只是消息内容为错误描述
-        saveMessage(appId, userId, errorMessage, MessageTypeEnum.AI);
-    }
-
-    /**
-     * 保存一条对话消息
-     *
-     * @param appId       应用id
-     * @param userId      用户id
-     * @param message     消息内容
-     * @param messageType 消息类型
-     */
-    private void saveMessage(Long appId, Long userId, String message, MessageTypeEnum messageType) {
+    public void addChatMessage(Long appId , String message, ChatHistoryMessageTypeEnum chatHistoryMessageTypeEnum, Long userId){
         if (appId == null || appId <= 0 || userId == null || userId <= 0) {
             log.warn("对话历史参数不完整，放弃保存：appId={}，userId={}", appId, userId);
             return;
@@ -145,14 +122,14 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
         chatHistory.setAppId(appId);
         chatHistory.setUserId(userId);
         chatHistory.setMessage(message);
-        chatHistory.setMessageType(messageType.getValue());
+        chatHistory.setMessageType(chatHistoryMessageTypeEnum.getValue());
         chatHistory.setCreateTime(LocalDateTime.now());
         chatHistory.setUpdateTime(LocalDateTime.now());
         try {
             this.save(chatHistory);
         } catch (Exception e) {
             // 保存对话历史失败不影响主流程
-            log.error("保存对话历史失败：appId={}，messageType={}，原因：{}", appId, messageType.getValue(), e.getMessage(), e);
+            log.error("保存对话历史失败：appId={}，messageType={}，原因：{}", appId, chatHistoryMessageTypeEnum.getValue(), e.getMessage(), e);
         }
     }
 
@@ -267,7 +244,7 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
         String messageType = chatHistoryQueryRequest.getMessageType();
         // 消息类型校验
         if (StrUtil.isNotBlank(messageType)) {
-            ThrowUtils.throwIf(!MessageTypeEnum.isValid(messageType), ErrorCode.PARAMS_ERROR, "消息类型无效");
+            ThrowUtils.throwIf(!ChatHistoryMessageTypeEnum.isValid(messageType), ErrorCode.PARAMS_ERROR, "消息类型无效");
         }
         QueryWrapper queryWrapper = QueryWrapper.create()
                 .eq("appId", chatHistoryQueryRequest.getAppId())
@@ -335,8 +312,8 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
                     ChatHistoryVO chatHistoryVO = new ChatHistoryVO();
                     BeanUtil.copyProperties(chatHistory, chatHistoryVO);
                     // 消息类型描述
-                    MessageTypeEnum messageTypeEnum = MessageTypeEnum.getEnumByValue(chatHistory.getMessageType());
-                    chatHistoryVO.setMessageTypeText(messageTypeEnum == null ? chatHistory.getMessageType() : messageTypeEnum.getText());
+                    ChatHistoryMessageTypeEnum chatHistoryMessageTypeEnum = ChatHistoryMessageTypeEnum.getEnumByValue(chatHistory.getMessageType());
+                    chatHistoryVO.setMessageTypeText(chatHistoryMessageTypeEnum == null ? chatHistory.getMessageType() : chatHistoryMessageTypeEnum.getText());
                     // 应用名称、用户账号与昵称
                     chatHistoryVO.setAppName(finalAppNameMap.get(chatHistory.getAppId()));
                     chatHistoryVO.setUserAccount(userAccountMap.get(chatHistory.getUserId()));

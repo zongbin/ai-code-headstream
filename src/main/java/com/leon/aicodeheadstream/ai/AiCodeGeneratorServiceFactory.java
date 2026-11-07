@@ -2,6 +2,10 @@ package com.leon.aicodeheadstream.ai;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.leon.aicodeheadstream.ai.tools.FileWriteTool;
+import com.leon.aicodeheadstream.exception.BusinessException;
+import com.leon.aicodeheadstream.exception.ErrorCode;
+import com.leon.aicodeheadstream.model.enums.CodeGenTypeEnum;
 import com.leon.aicodeheadstream.service.ChatHistoryService;
 import dev.langchain4j.community.store.memory.chat.redis.RedisChatMemoryStore;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
@@ -14,6 +18,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
+import java.util.function.Function;
 
 @Configuration
 @Slf4j
@@ -23,7 +28,10 @@ public class AiCodeGeneratorServiceFactory {
     private ChatModel chatModel;
 
     @Resource
-    private StreamingChatModel streamingChatModel;
+    private StreamingChatModel openAiStreamingChatModel;
+
+    @Resource
+    private StreamingChatModel reasoningStreamingChatModel;
 
     @Resource
     private RedisChatMemoryStore redisChatMemoryStore;
@@ -31,12 +39,12 @@ public class AiCodeGeneratorServiceFactory {
     @Resource
     private ChatHistoryService chatHistoryService;
 
-    private final Cache<Long, AiCodeGeneratorService> serviceCache = Caffeine.newBuilder()
+    private final Cache<String, AiCodeGeneratorService> serviceCache = Caffeine.newBuilder()
             .maximumSize(1000)
             .expireAfterWrite(Duration.ofMinutes(30))
             .expireAfterAccess(Duration.ofMinutes(10))
             .removalListener((key, value, cause) -> {
-                log.debug("AI服务实例被移除，appId：{}，原因：{}", key, cause);
+                log.debug("AI服务实例被移除，key：{}，原因：{}", key, cause);
             })
             .build();
 
@@ -50,23 +58,55 @@ public class AiCodeGeneratorServiceFactory {
      *
      */
     public AiCodeGeneratorService getAiCodeGeneratorService(long appId) {
-       return serviceCache.get(appId,this::createAiCodeGeneratorService);
+        return getAiCodeGeneratorService(appId, CodeGenTypeEnum.MULTI_FILE);
     }
 
-    public AiCodeGeneratorService createAiCodeGeneratorService(long appId) {
+    /**
+     * 根据appId获取ai服务（带缓存）
+     *
+     */
+    public AiCodeGeneratorService getAiCodeGeneratorService(long appId, CodeGenTypeEnum codeGenTypeEnum) {
+        return serviceCache.get(buildCacheKey(appId, codeGenTypeEnum),
+                new Function<String, AiCodeGeneratorService>() {
+                    @Override
+                    public AiCodeGeneratorService apply(String s) {
+                        return createAiCodeGeneratorService(appId, codeGenTypeEnum);
+                    }
+                });
+    }
+
+    public AiCodeGeneratorService createAiCodeGeneratorService(long appId, CodeGenTypeEnum codeGenTypeEnum) {
         log.info("创建新的AI实例，appId：{}", appId);
         MessageWindowChatMemory chatMemory = MessageWindowChatMemory.builder()
                 .id(appId)
                 .chatMemoryStore(redisChatMemoryStore)
-                .maxMessages(10)
+                .maxMessages(20)
                 .build();
         // 从数据库中加载历史对话到记忆中
-        chatHistoryService.loadChatHistoryToMemory(appId,chatMemory,10);
-        return AiServices.builder(AiCodeGeneratorService.class)
-                .chatModel(chatModel)
-                .streamingChatModel(streamingChatModel)
-                .chatMemory(chatMemory)
-                .build();
+        chatHistoryService.loadChatHistoryToMemory(appId, chatMemory, 20);
+        // 根据不同的代码生成类型使用不同的模型配置时
+        return switch (codeGenTypeEnum) {
+            case VUE_PROJECT -> AiServices.builder(AiCodeGeneratorService.class)
+                    .streamingChatModel(reasoningStreamingChatModel)
+                    .chatMemoryProvider(memoryId -> chatMemory)
+                    .tools(new FileWriteTool())
+                    .build();
+            case HTML, MULTI_FILE -> AiServices.builder(AiCodeGeneratorService.class)
+                    .chatModel(chatModel)
+                    .streamingChatModel(openAiStreamingChatModel)
+                    .chatMemory(chatMemory)
+                    .build();
+            default -> throw new BusinessException(ErrorCode.SYSTEM_ERROR, "不支持的代码生成类型: " + codeGenTypeEnum);
+        };
+
+    }
+
+    /**
+     * 构建缓存键
+     *
+     */
+    private String buildCacheKey(long appId, CodeGenTypeEnum codeGenTypeEnum) {
+        return appId + "_" + codeGenTypeEnum.getValue();
     }
 }
 

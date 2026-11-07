@@ -13,7 +13,7 @@ import lombok.Getter;
  * @author leon
  */
 @Getter
-public enum MessageTypeEnum {
+public enum ChatHistoryMessageTypeEnum {
 
     USER("用户消息", "user"),
     AI("AI 回复", "ai");
@@ -28,7 +28,7 @@ public enum MessageTypeEnum {
      */
     private final String value;
 
-    MessageTypeEnum(String text, String value) {
+    ChatHistoryMessageTypeEnum(String text, String value) {
         this.text = text;
         this.value = value;
     }
@@ -39,11 +39,11 @@ public enum MessageTypeEnum {
      * @param value 枚举值的 value
      * @return 枚举值，未匹配时返回 null
      */
-    public static MessageTypeEnum getEnumByValue(String value) {
+    public static ChatHistoryMessageTypeEnum getEnumByValue(String value) {
         if (ObjUtil.isEmpty(value)) {
             return null;
         }
-        for (MessageTypeEnum anEnum : MessageTypeEnum.values()) {
+        for (ChatHistoryMessageTypeEnum anEnum : ChatHistoryMessageTypeEnum.values()) {
             if (anEnum.value.equals(value)) {
                 return anEnum;
             }

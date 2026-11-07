@@ -16,6 +16,9 @@ export function getAppPreviewUrl(codeGenType?: string, appId?: AppId | number) {
   if (!codeGenType || !appId) {
     return ''
   }
+  if(codeGenType === 'vue_project'){
+    return `${API_BASE_URL}/static/${codeGenType}_${appId}/dist/index.html`
+  }
   return `${API_BASE_URL}/static/${codeGenType}_${appId}/`
 }
 
