@@ -26,6 +26,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Map;
@@ -74,9 +75,15 @@ public class AppController {
         return content
                 .map(chunk -> ServerSentEvent.<String>builder()
                         .data(JSONUtil.toJsonStr(Map.of("d", chunk)))
-                        .build());
+                        .build())
+                .concatWith(Mono.just(
+                        // 发送结束事件
+                        ServerSentEvent.<String>builder()
+                                .event("done")
+                                .data("")
+                                .build())
+                );
     }
-    
 
 
     /**

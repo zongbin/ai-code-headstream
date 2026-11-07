@@ -278,8 +278,10 @@ const sendMessage = async (text: string) => {
   typewriter = printer
   abortController = new AbortController()
   let succeeded = false
+  // 是否收到了后端的结束事件。收到说明后端已正常生成完毕，代码也已写入磁盘
+  let finished = false
   try {
-    await chatToGenCodeStream(
+    finished = await chatToGenCodeStream(
       {
         appId: appId.value,
         message: content,
@@ -319,8 +321,10 @@ const sendMessage = async (text: string) => {
       abortController = null
       typewriter = null
       if (succeeded) {
-        // 打字机打完后再展示网页，避免预览先于对话出现
-        showPreview()
+        // 打字机打完后再展示网页，避免预览先于对话出现。
+        // 收到结束事件说明后端已经把代码写入磁盘，可以立即加载预览；
+        // 没收到（旧版后端）时延迟一下，等文件落盘。
+        showPreview(finished ? 0 : 800)
       }
       await scrollToBottom()
     }
@@ -330,7 +334,9 @@ const sendMessage = async (text: string) => {
 /**
  * 展示生成后的网页效果
  *
- * 后端在流式响应结束后才把代码写入磁盘，这里稍微延迟一下再加载预览，避免文件还没落盘。
+ * 后端在流式响应结束时才把代码写入磁盘。收到结束事件（done）说明后端已经写完了，
+ * 这时可以立即加载预览；拿不到结束事件时（旧版后端）只能稍微延迟一下再加载，避免文件还没落盘。
+ *
  * 进入页面时网页已经生成好了，可以立即展示。
  *
  * @param delay 延迟展示的毫秒数
@@ -345,7 +351,8 @@ const showPreview = (delay = 800) => {
     if (seq !== requestSeq) {
       return
     }
-    previewUrl.value = url
+    // 加上时间戳，避免同一应用重新生成后浏览器还显示上一次的缓存页面
+    previewUrl.value = `${url}?t=${Date.now()}`
     previewReady.value = true
   }, delay)
 }
