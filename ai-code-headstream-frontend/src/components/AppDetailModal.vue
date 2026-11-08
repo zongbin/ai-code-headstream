@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons-vue'
-import { formatDateTime } from '@/utils/app.ts'
+import { formatDateTime, getCodeGenTypeText } from '@/utils/app.ts'
 
 defineProps<{
   /** 应用详情 */
@@ -33,6 +33,10 @@ const emit = defineEmits<{
           </a-avatar>
           <span class="app-detail__creator-name">{{ app.user?.userName ?? '-' }}</span>
         </div>
+      </div>
+      <div class="app-detail__section">
+        <div class="app-detail__label">生成类型</div>
+        <div class="app-detail__value">{{ getCodeGenTypeText(app.codeGenType) }}</div>
       </div>
       <div class="app-detail__section">
         <div class="app-detail__label">创建时间</div>

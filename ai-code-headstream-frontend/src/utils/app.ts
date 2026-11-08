@@ -89,6 +89,25 @@ export function getAppVisibleText(visible?: number) {
 }
 
 /**
+ * 代码生成类型文案，与后端 CodeGenTypeEnum 保持一致
+ */
+const CODE_GEN_TYPE_TEXT: Record<string, string> = {
+  html: '原生 HTML 模式',
+  multi_file: '原生多文件模式',
+  vue_project: 'Vue 工程模式',
+}
+
+/**
+ * 代码生成类型文案
+ */
+export function getCodeGenTypeText(codeGenType?: string) {
+  if (!codeGenType) {
+    return '-'
+  }
+  return CODE_GEN_TYPE_TEXT[codeGenType] ?? codeGenType
+}
+
+/**
  * 应用标签枚举值，与后端 AppLabelEnum 保持一致。
  */
 export const APP_LABELS = [

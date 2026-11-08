@@ -13,14 +13,8 @@ import {
   RocketOutlined,
 } from '@ant-design/icons-vue'
 import { chatToGenCodeStream, createTypewriter } from '@/utils/appChat.ts'
-import {
-  deleteApp,
-  deleteAppByAdmin,
-  deployApp,
-  getAppVoById,
-  listMyAppVoByPage,
-} from '@/api/appController.ts'
-import { formatDateTime, getAppPreviewUrl } from '@/utils/app.ts'
+import { deleteApp, deleteAppByAdmin, deployApp, getAppVoById } from '@/api/appController.ts'
+import { formatDateTime, getAppPreviewUrl, getCodeGenTypeText } from '@/utils/app.ts'
 import { downloadAppCodeZip } from '@/utils/appDownload.ts'
 import { MESSAGE_TYPE_USER } from '@/utils/chatHistory.ts'
 import { useChatHistory } from '@/composables/useChatHistory.ts'
@@ -53,7 +47,6 @@ const appId = computed(() => String(route.params.id))
 
 // 应用信息
 const appInfo = ref<API.AppVO>({})
-const loading = ref(false)
 
 // 是否是自己的作品（只有作者本人才能继续对话）
 const isOwner = computed(
@@ -72,19 +65,6 @@ const canViewHistory = computed(() => isOwner.value || isAdmin.value)
 // 应用详情悬浮窗
 const detailVisible = ref(false)
 const deleting = ref(false)
-
-// 我的应用列表（用于顶部切换应用）
-const myApps = ref<API.AppVO[]>([])
-
-// 顶部下拉选项：确保当前应用始终存在
-const appOptions = computed(() => {
-  const options = [...myApps.value]
-  const current = appInfo.value
-  if (current.id && !options.some((item) => item.id === current.id)) {
-    options.unshift(current)
-  }
-  return options
-})
 
 // 对话历史（游标分页加载，后端只允许应用作者和管理员查看）
 const {
@@ -182,7 +162,6 @@ const loadAppInfo = async () => {
   if (!appId.value) {
     return
   }
-  loading.value = true
   try {
     const res = await getAppVoById({ id: appId.value as unknown as number })
     if (res.data.code === 0 && res.data.data) {
@@ -193,25 +172,6 @@ const loadAppInfo = async () => {
   } catch (error) {
     console.error('获取应用详情失败', error)
     message.error('获取应用详情失败，请检查后端服务是否已启动')
-  } finally {
-    loading.value = false
-  }
-}
-
-/**
- * 获取我的应用列表（顶部下拉切换）
- */
-const loadMyApps = async () => {
-  try {
-    const res = await listMyAppVoByPage({
-      pageNum: 1,
-      pageSize: 20,
-    })
-    if (res.data.code === 0 && res.data.data) {
-      myApps.value = res.data.data.records ?? []
-    }
-  } catch (error) {
-    console.error('获取应用列表失败', error)
   }
 }
 
@@ -469,13 +429,6 @@ const copyDeployUrl = async () => {
 }
 
 /**
- * 切换应用
- */
-const onAppChange = (value: number | string) => {
-  router.push(`/app/chat/${value}`)
-}
-
-/**
  * 打开部署地址
  */
 const openDeployUrl = () => {
@@ -558,7 +511,6 @@ watch(appId, async () => {
 
 onMounted(async () => {
   await initApp()
-  await loadMyApps()
 })
 
 onBeforeUnmount(() => {
@@ -571,18 +523,8 @@ onBeforeUnmount(() => {
     <!-- 顶部栏 -->
     <div class="chat-page__top">
       <div class="chat-page__top-left">
-        <a-select
-          class="chat-page__app-select"
-          :value="appId"
-          :loading="loading"
-          @change="onAppChange"
-        >
-          <a-select-option v-for="item in appOptions" :key="item.id" :value="item.id">
-            {{ item.appName }}
-          </a-select-option>
-        </a-select>
         <span class="chat-page__app-name">{{ appInfo.appName }}</span>
-        <a-tag v-if="appInfo.deployedTime" color="green">已部署</a-tag>
+        <a-tag v-if="appInfo.codeGenType">{{ getCodeGenTypeText(appInfo.codeGenType) }}</a-tag>
       </div>
       <div class="chat-page__top-right">
         <a-button @click="detailVisible = true">
@@ -825,10 +767,6 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 8px;
   align-items: center;
-}
-
-.chat-page__app-select {
-  width: 180px;
 }
 
 .chat-page__app-name {

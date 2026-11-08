@@ -5,6 +5,8 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import com.leon.aicodeheadstream.ai.AiCodeGenTypeRoutingService;
+import com.leon.aicodeheadstream.ai.AiCodeGenTypeRoutingServiceFactory;
 import com.leon.aicodeheadstream.constant.AppConstant;
 import com.leon.aicodeheadstream.constant.UserConstant;
 import com.leon.aicodeheadstream.core.AiCodeGeneratorFacade;
@@ -71,6 +73,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     private VueProjectBuilder vueProjectBuilder;
     @Resource
     private ScreenshotService screenshotService;
+    @Resource
+    private AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService;
 
 
     @Override
@@ -162,7 +166,6 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     }
 
 
-
     /**
      * 异步生成应用截图并更新封面
      *
@@ -185,7 +188,6 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     }
 
 
-
     @Override
     public long createApp(AppAddRequest appAddRequest, User loginUser) {
         ThrowUtils.throwIf(appAddRequest == null, ErrorCode.PARAMS_ERROR);
@@ -200,8 +202,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         App app = new App();
         app.setAppName(appName);
         app.setInitPrompt(initPrompt);
-        // 暂时用这个
-        app.setCodeGenType(CodeGenTypeEnum.VUE_PROJECT.getValue());
+        // 使用ai智能选择代码生成类型
+        CodeGenTypeEnum codeGenTypeEnum = aiCodeGenTypeRoutingService.routeCodeGenType(initPrompt);
+        app.setCodeGenType(codeGenTypeEnum.getValue());
         app.setUserId(loginUser.getId());
         app.setPriority(AppConstant.DEFAULT_APP_PRIORITY);
         // 应用创建时默认为私有，用户可在应用修改页面调整为公开
@@ -211,6 +214,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         app.setEditTime(LocalDateTime.now());
         boolean result = this.save(app);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "创建应用失败");
+        log.info("创建应用成功，id：{}，应用类型：{}", app.getId(), app.getCodeGenType());
         return app.getId();
     }
 
