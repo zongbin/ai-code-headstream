@@ -89,13 +89,13 @@ export function getAppVisibleText(visible?: number) {
 }
 
 /**
- * 代码生成类型文案，与后端 CodeGenTypeEnum 保持一致
+ * 代码生成类型，与后端 CodeGenTypeEnum 保持一致
  */
-const CODE_GEN_TYPE_TEXT: Record<string, string> = {
-  html: '原生 HTML 模式',
-  multi_file: '原生多文件模式',
-  vue_project: 'Vue 工程模式',
-}
+export const CODE_GEN_TYPE_OPTIONS = [
+  { value: 'html', text: '原生 HTML 模式', color: 'green' },
+  { value: 'multi_file', text: '原生多文件模式', color: 'blue' },
+  { value: 'vue_project', text: 'Vue 工程模式', color: 'purple' },
+] as const
 
 /**
  * 代码生成类型文案
@@ -104,7 +104,14 @@ export function getCodeGenTypeText(codeGenType?: string) {
   if (!codeGenType) {
     return '-'
   }
-  return CODE_GEN_TYPE_TEXT[codeGenType] ?? codeGenType
+  return CODE_GEN_TYPE_OPTIONS.find((item) => item.value === codeGenType)?.text ?? codeGenType
+}
+
+/**
+ * 代码生成类型标签颜色
+ */
+export function getCodeGenTypeColor(codeGenType?: string) {
+  return CODE_GEN_TYPE_OPTIONS.find((item) => item.value === codeGenType)?.color ?? 'default'
 }
 
 /**

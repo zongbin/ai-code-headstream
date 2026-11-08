@@ -26,8 +26,13 @@
           style="width: 160px"
           allow-clear
         >
-          <a-select-option value="html">原生 HTML 模式</a-select-option>
-          <a-select-option value="multi_file">原生多文件模式</a-select-option>
+          <a-select-option
+            v-for="item in CODE_GEN_TYPE_OPTIONS"
+            :key="item.value"
+            :value="item.value"
+          >
+            {{ item.text }}
+          </a-select-option>
         </a-select>
       </a-form-item>
       <a-form-item label="部署标识">
@@ -74,7 +79,7 @@
       :data-source="data"
       :pagination="pagination"
       row-key="id"
-      :scroll="{ x: 1680 }"
+      :scroll="{ x: 1760 }"
       @change="doTableChange"
     >
       <template #bodyCell="{ column, record }">
@@ -93,8 +98,8 @@
           </a-tooltip>
         </template>
         <template v-else-if="column.dataIndex === 'codeGenType'">
-          <a-tag :color="record.codeGenType === 'multi_file' ? 'blue' : 'green'">
-            {{ record.codeGenType === 'multi_file' ? '多文件' : 'HTML' }}
+          <a-tag :color="getCodeGenTypeColor(record.codeGenType)">
+            {{ getCodeGenTypeText(record.codeGenType) }}
           </a-tag>
         </template>
         <template v-else-if="column.dataIndex === 'priority'">
@@ -151,9 +156,12 @@ import {
   APP_LABELS,
   APP_VISIBLE_PRIVATE,
   APP_VISIBLE_PUBLIC,
+  CODE_GEN_TYPE_OPTIONS,
   DEFAULT_APP_PRIORITY,
   formatDateTime,
   getAppVisibleText,
+  getCodeGenTypeColor,
+  getCodeGenTypeText,
   GOOD_APP_PRIORITY,
   isGoodApp,
   isPinnedApp,
@@ -193,7 +201,7 @@ const columns = [
   {
     title: '生成类型',
     dataIndex: 'codeGenType',
-    width: 120,
+    width: 160,
   },
   {
     title: '部署标识',
