@@ -19,10 +19,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.leon.aicodeheadstream.model.entity.User;
 import com.leon.aicodeheadstream.service.UserService;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 /**
@@ -210,6 +212,21 @@ public class UserController {
         boolean result = userService.updateById(user);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
+    }
+
+    /**
+     * 上传当前登录用户的头像到对象存储
+     *
+     * @param file    头像文件
+     * @param request 请求
+     * @return 头像访问地址
+     */
+    @PostMapping("/avatar/upload")
+    public BaseResponse<String> uploadAvatar(@RequestParam("file") MultipartFile file, HttpServletRequest request) {
+        // 未登录会抛出 NOT_LOGIN_ERROR
+        userService.getLoginUser(request);
+        String url = userService.uploadAvatar(file);
+        return ResultUtils.success(url);
     }
 
     /**

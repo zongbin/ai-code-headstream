@@ -2,9 +2,12 @@ package com.leon.aicodeheadstream.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
 import com.leon.aicodeheadstream.exception.BusinessException;
 import com.leon.aicodeheadstream.exception.ErrorCode;
+import com.leon.aicodeheadstream.exception.ThrowUtils;
+import com.leon.aicodeheadstream.manager.CosManager;
 import com.leon.aicodeheadstream.model.dto.user.UserQueryRequest;
 import com.leon.aicodeheadstream.model.enums.UserRoleEnum;
 import com.leon.aicodeheadstream.model.vo.LoginUserVO;
@@ -14,12 +17,19 @@ import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.leon.aicodeheadstream.model.entity.User;
 import com.leon.aicodeheadstream.mapper.UserMapper;
 import com.leon.aicodeheadstream.service.UserService;
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.leon.aicodeheadstream.constant.UserConstant.USER_LOGIN_STATE;
@@ -31,6 +41,13 @@ import static com.leon.aicodeheadstream.constant.UserConstant.USER_LOGIN_STATE;
  */
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements UserService{
+
+    private static final long MAX_AVATAR_SIZE = 2 * 1024 * 1024;
+
+    private static final Set<String> AVATAR_SUFFIXES = Set.of("jpg", "jpeg", "png", "gif", "webp");
+
+    @Resource
+    private CosManager cosManager;
 
     @Override
     public long userRegister(String userAccount, String userPassword, String checkPassword) {
@@ -187,6 +204,29 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
                 .orderBy(sortField, "ascend".equals(sortOrder));
     }
 
-
+    @Override
+    public String uploadAvatar(MultipartFile file) {
+        ThrowUtils.throwIf(file == null || file.isEmpty(), ErrorCode.PARAMS_ERROR, "头像文件不能为空");
+        ThrowUtils.throwIf(file.getSize() > MAX_AVATAR_SIZE, ErrorCode.PARAMS_ERROR, "头像不能超过 2MB");
+        String suffix = FileUtil.getSuffix(file.getOriginalFilename());
+        ThrowUtils.throwIf(StrUtil.isBlank(suffix) || !AVATAR_SUFFIXES.contains(suffix.toLowerCase()),
+                ErrorCode.PARAMS_ERROR, "仅支持 jpg、jpeg、png、gif、webp 图片");
+        String fileName = UUID.randomUUID().toString().replace("-", "") + "." + suffix.toLowerCase();
+        String cosKey = String.format("/avatar/%s/%s",
+                LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd")), fileName);
+        File tempFile = FileUtil.createTempFile("avatar-", "." + suffix.toLowerCase(), true);
+        try {
+            FileUtil.writeFromStream(file.getInputStream(), tempFile);
+            String url = cosManager.uploadFile(cosKey, tempFile);
+            ThrowUtils.throwIf(StrUtil.isBlank(url), ErrorCode.OPERATION_ERROR, "头像上传失败");
+            return url;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "头像上传失败");
+        } finally {
+            FileUtil.del(tempFile);
+        }
+    }
 
 }

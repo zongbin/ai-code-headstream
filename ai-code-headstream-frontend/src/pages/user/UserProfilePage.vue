@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import type { FormInstance } from 'ant-design-vue'
+import type { FormInstance, UploadProps } from 'ant-design-vue'
+import { LoadingOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
-import { getLoginUser, updateMyUser } from '@/api/userController.ts'
+import { getLoginUser, updateMyUser, uploadAvatar } from '@/api/userController.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import PageCard from '@/components/PageCard.vue'
 import FormActions from '@/components/FormActions.vue'
@@ -23,6 +24,45 @@ const form = reactive({
 
 const loading = ref(false)
 const saving = ref(false)
+const uploading = ref(false)
+
+const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+
+const beforeAvatarUpload: UploadProps['beforeUpload'] = (file) => {
+  if (!AVATAR_TYPES.includes(file.type)) {
+    message.error('只能上传 JPG、PNG、GIF、WEBP 图片')
+    return false
+  }
+  if (file.size / 1024 / 1024 >= 2) {
+    message.error('头像不能超过 2MB')
+    return false
+  }
+  return true
+}
+
+const handleAvatarUpload: UploadProps['customRequest'] = async (options) => {
+  const { file, onSuccess, onError } = options
+  const formData = new FormData()
+  formData.append('file', file as File)
+  uploading.value = true
+  try {
+    const res = await uploadAvatar(formData)
+    if (res.data.code === 0 && res.data.data) {
+      form.userAvatar = res.data.data
+      message.success('头像已上传，请点击保存')
+      onSuccess?.(res.data)
+    } else {
+      message.error('头像上传失败，' + res.data.message)
+      onError?.(new Error(res.data.message || '头像上传失败'))
+    }
+  } catch (error) {
+    console.error('头像上传失败', error)
+    message.error('头像上传失败，请检查后端服务是否已启动')
+    onError?.(error as Error)
+  } finally {
+    uploading.value = false
+  }
+}
 
 // 表单校验规则
 const rules = {
@@ -102,13 +142,28 @@ const doCancel = () => {
           <a-input v-model:value="form.userName" placeholder="请输入用户名" />
         </a-form-item>
         <a-form-item label="头像">
-          <a-input v-model:value="form.userAvatar" placeholder="请输入头像地址" />
-          <a-image
-            v-if="form.userAvatar"
-            :src="form.userAvatar"
-            :width="80"
-            style="margin-top: 8px; border-radius: 6px"
-          />
+          <a-upload
+            name="file"
+            class="avatar-uploader"
+            list-type="picture-card"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            :show-upload-list="false"
+            :before-upload="beforeAvatarUpload"
+            :custom-request="handleAvatarUpload"
+          >
+            <img
+              v-if="form.userAvatar && !uploading"
+              :src="form.userAvatar"
+              alt="头像"
+              class="avatar-preview"
+            />
+            <div v-else>
+              <LoadingOutlined v-if="uploading" />
+              <PlusOutlined v-else />
+              <div class="avatar-upload-text">{{ uploading ? '上传中' : '上传头像' }}</div>
+            </div>
+          </a-upload>
+          <div class="avatar-upload-hint">支持 JPG、PNG、GIF、WEBP，不超过 2MB，上传后请点击保存</div>
         </a-form-item>
         <a-form-item label="简介">
           <a-textarea
@@ -128,5 +183,27 @@ const doCancel = () => {
 <style scoped>
 #userProfilePage {
   padding: 8px 0;
+}
+
+.avatar-uploader :deep(.ant-upload) {
+  width: 104px;
+  height: 104px;
+  overflow: hidden;
+}
+
+.avatar-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-upload-text {
+  margin-top: 8px;
+}
+
+.avatar-upload-hint {
+  margin-top: 8px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
 }
 </style>

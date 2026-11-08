@@ -7,6 +7,7 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
 import com.leon.aicodeheadstream.model.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -72,4 +73,12 @@ public interface UserService extends IService<User> {
      List<UserVO> getUserVOList(List<User> userList);
 
      QueryWrapper getQueryWrapper(UserQueryRequest userQueryRequest);
+
+    /**
+     * 上传用户头像到对象存储
+     *
+     * @param file 头像文件
+     * @return 头像访问地址
+     */
+    String uploadAvatar(MultipartFile file);
 }

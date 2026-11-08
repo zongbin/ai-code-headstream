@@ -126,6 +126,15 @@ export async function updateUser(body: API.UserUpdateRequest, options?: { [key: 
   })
 }
 
+/** 上传头像 POST /user/avatar/upload */
+export async function uploadAvatar(body: FormData, options?: { [key: string]: any }) {
+  return request<API.BaseResponseString>('/user/avatar/upload', {
+    method: 'POST',
+    data: body,
+    ...(options || {}),
+  })
+}
+
 /** 此处后端没有提供注释 POST /user/update/my */
 export async function updateMyUser(
   body: API.UserProfileUpdateRequest,
