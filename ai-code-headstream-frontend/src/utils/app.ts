@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '@/request'
+import { API_BASE_URL, DEPLOY_BASE_URL } from '@/config'
 
 /**
  * 应用主键
@@ -24,14 +24,14 @@ export function getAppPreviewUrl(codeGenType?: string, appId?: AppId | number) {
 
 /**
  * 应用部署地址（查看作品）
- * 后端部署后会把代码复制到部署目录，并通过 http://localhost/{deployKey}/ 访问。
+ * 后端部署后会把代码复制到部署目录，并通过 {DEPLOY_BASE_URL}/{deployKey}/ 访问。
  * 注意：部署地址与生成网站的预览地址（getAppPreviewUrl）不同，不要混用。
  */
 export function getAppDeployUrl(deployKey?: string) {
   if (!deployKey) {
     return ''
   }
-  return `http://localhost/${deployKey}/`
+  return `${DEPLOY_BASE_URL}/${deployKey}/`
 }
 
 /**

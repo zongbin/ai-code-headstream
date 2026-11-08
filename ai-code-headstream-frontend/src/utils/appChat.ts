@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '@/request'
+import { API_BASE_URL } from '@/config'
 
 /**
  * 后端是否会发送结束事件（done）。
