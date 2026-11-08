@@ -3,39 +3,25 @@
     <!-- 搜索表单 -->
     <search-form @search="doSearch" @reset="doReset">
       <a-form-item label="应用 ID">
-        <a-input-number
-          v-model:value="searchParams.appId"
-          placeholder="输入应用 ID"
-          style="width: 140px"
-          :min="1"
-        />
+        <a-input-number v-model:value="searchParams.appId" placeholder="输入应用 ID" :min="1" />
       </a-form-item>
       <a-form-item label="用户账号">
-        <a-input
-          v-model:value="searchParams.userAccount"
-          placeholder="输入用户账号"
-          style="width: 160px"
-        />
+        <a-input v-model:value="searchParams.userAccount" placeholder="输入用户账号" />
       </a-form-item>
       <a-form-item label="消息类型">
-        <a-select
-          v-model:value="searchParams.messageType"
-          placeholder="消息类型"
-          style="width: 140px"
-          allow-clear
-        >
+        <a-select v-model:value="searchParams.messageType" placeholder="消息类型" allow-clear>
           <a-select-option :value="MESSAGE_TYPE_USER">用户消息</a-select-option>
           <a-select-option :value="MESSAGE_TYPE_AI">AI 回复</a-select-option>
         </a-select>
       </a-form-item>
     </search-form>
-    <a-divider />
     <a-table
       :columns="columns"
       :data-source="data"
       :pagination="pagination"
       row-key="id"
-      :scroll="{ x: 1540 }"
+      size="middle"
+      :scroll="{ x: 1460 }"
       @change="doTableChange"
     >
       <template #bodyCell="{ column, record }">
@@ -50,7 +36,7 @@
           </a-tooltip>
         </template>
         <template v-else-if="column.dataIndex === 'appName'">
-          <a-typography-link @click="goAppChat(record)">
+          <a-typography-link class="ellipsis" @click="goAppChat(record)">
             {{ record.appName ?? record.appId ?? '-' }}
           </a-typography-link>
         </template>
@@ -84,32 +70,37 @@ const columns = [
   {
     title: 'id',
     dataIndex: 'id',
-    width: 180,
+    width: 200,
+    ellipsis: true,
   },
   {
     title: '应用 ID',
     dataIndex: 'appId',
-    width: 180,
+    width: 200,
+    ellipsis: true,
   },
   {
     title: '应用名称',
     dataIndex: 'appName',
     width: 180,
+    ellipsis: true,
   },
   {
     title: '消息类型',
     dataIndex: 'messageType',
-    width: 100,
+    width: 110,
   },
   {
     title: '消息内容',
     dataIndex: 'message',
-    width: 420,
+    width: 320,
+    ellipsis: true,
   },
   {
     title: '用户账号',
     dataIndex: 'userAccount',
-    width: 180,
+    width: 160,
+    ellipsis: true,
   },
   {
     title: '创建时间',
@@ -119,8 +110,8 @@ const columns = [
   {
     title: '操作',
     key: 'action',
-    width: 120,
-    fixed: 'right',
+    width: 110,
+    fixed: 'right' as const,
   },
 ]
 
@@ -171,16 +162,10 @@ const goAppChat = (record: API.ChatHistoryVO) => {
 }
 </script>
 <style scoped>
-.row-operations a {
-  margin-right: 8px;
-}
-
 .ellipsis {
-  display: inline-block;
-  max-width: 400px;
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
-  vertical-align: bottom;
   white-space: nowrap;
 }
 </style>

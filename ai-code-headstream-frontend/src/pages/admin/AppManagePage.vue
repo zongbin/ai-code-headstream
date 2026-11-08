@@ -3,27 +3,18 @@
     <!-- 搜索表单 -->
     <search-form @search="doSearch" @reset="doReset">
       <a-form-item label="应用 ID">
-        <a-input v-model:value="searchParams.id" placeholder="输入应用 ID" style="width: 120px" />
+        <a-input v-model:value="searchParams.id" placeholder="输入应用 ID" />
       </a-form-item>
       <a-form-item label="应用名称">
-        <a-input
-          v-model:value="searchParams.appName"
-          placeholder="输入应用名称"
-          style="width: 160px"
-        />
+        <a-input v-model:value="searchParams.appName" placeholder="输入应用名称" />
       </a-form-item>
       <a-form-item label="创建者 ID">
-        <a-input
-          v-model:value="searchParams.userId"
-          placeholder="输入用户 ID"
-          style="width: 120px"
-        />
+        <a-input v-model:value="searchParams.userId" placeholder="输入用户 ID" />
       </a-form-item>
       <a-form-item label="生成类型">
         <a-select
           v-model:value="searchParams.codeGenType"
           placeholder="生成类型"
-          style="width: 160px"
           allow-clear
         >
           <a-select-option
@@ -36,55 +27,37 @@
         </a-select>
       </a-form-item>
       <a-form-item label="部署标识">
-        <a-input
-          v-model:value="searchParams.deployKey"
-          placeholder="部署标识"
-          style="width: 140px"
-        />
+        <a-input v-model:value="searchParams.deployKey" placeholder="部署标识" />
       </a-form-item>
       <a-form-item label="优先级">
-        <a-input-number
-          v-model:value="searchParams.priority"
-          placeholder="优先级"
-          style="width: 120px"
-        />
+        <a-input-number v-model:value="searchParams.priority" placeholder="优先级" />
       </a-form-item>
       <a-form-item label="可见状态">
-        <a-select
-          v-model:value="searchParams.visible"
-          placeholder="可见状态"
-          style="width: 120px"
-          allow-clear
-        >
+        <a-select v-model:value="searchParams.visible" placeholder="可见状态" allow-clear>
           <a-select-option :value="APP_VISIBLE_PUBLIC">公开</a-select-option>
           <a-select-option :value="APP_VISIBLE_PRIVATE">私有</a-select-option>
         </a-select>
       </a-form-item>
       <a-form-item label="应用标签">
-        <a-select
-          v-model:value="searchParams.label"
-          placeholder="应用标签"
-          style="width: 140px"
-          allow-clear
-        >
+        <a-select v-model:value="searchParams.label" placeholder="应用标签" allow-clear>
           <a-select-option v-for="label in APP_LABELS" :key="label" :value="label">
             {{ label }}
           </a-select-option>
         </a-select>
       </a-form-item>
     </search-form>
-    <a-divider />
     <a-table
       :columns="columns"
       :data-source="data"
       :pagination="pagination"
       row-key="id"
-      :scroll="{ x: 1760 }"
+      size="middle"
+      :scroll="{ x: 2060 }"
       @change="doTableChange"
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.dataIndex === 'cover'">
-          <a-image v-if="record.cover" :src="record.cover" :width="80" />
+          <a-image v-if="record.cover" :src="record.cover" :width="72" :height="40" class="cover" />
           <span v-else>-</span>
         </template>
         <template v-else-if="column.dataIndex === 'visible'">
@@ -176,12 +149,14 @@ const columns = [
   {
     title: 'id',
     dataIndex: 'id',
-    width: 100,
+    width: 200,
+    ellipsis: true,
   },
   {
     title: '应用名称',
     dataIndex: 'appName',
     width: 180,
+    ellipsis: true,
   },
   {
     title: '可见状态',
@@ -191,12 +166,13 @@ const columns = [
   {
     title: '封面',
     dataIndex: 'cover',
-    width: 100,
+    width: 96,
   },
   {
     title: '初始提示词',
     dataIndex: 'initPrompt',
     width: 240,
+    ellipsis: true,
   },
   {
     title: '生成类型',
@@ -207,6 +183,7 @@ const columns = [
     title: '部署标识',
     dataIndex: 'deployKey',
     width: 120,
+    ellipsis: true,
   },
   {
     title: '部署时间',
@@ -216,17 +193,18 @@ const columns = [
   {
     title: '优先级',
     dataIndex: 'priority',
-    width: 100,
+    width: 96,
   },
   {
     title: '标签',
     dataIndex: 'label',
-    width: 100,
+    width: 110,
   },
   {
     title: '创建者',
     dataIndex: 'user',
-    width: 140,
+    width: 120,
+    ellipsis: true,
   },
   {
     title: '创建时间',
@@ -236,8 +214,8 @@ const columns = [
   {
     title: '操作',
     key: 'action',
-    width: 220,
-    fixed: 'right',
+    width: 280,
+    fixed: 'right' as const,
   },
 ]
 
@@ -326,22 +304,30 @@ const doDelete = async (id: number) => {
 }
 </script>
 <style scoped>
-.row-operations a {
-  margin-right: 8px;
+.cover {
+  display: block;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.row-operations {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .row-operations .delete-button {
+  height: 24px;
+  padding: 0 8px;
   border-radius: 6px;
-  padding: 0 12px;
-  height: 26px;
 }
 
 .ellipsis {
-  display: inline-block;
-  max-width: 220px;
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
-  vertical-align: bottom;
   white-space: nowrap;
 }
 </style>

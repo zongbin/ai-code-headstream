@@ -9,12 +9,13 @@
         <a-input v-model:value="searchParams.userName" placeholder="输入用户名" />
       </a-form-item>
     </search-form>
-    <a-divider />
     <a-table
       :columns="columns"
       :data-source="data"
       :pagination="pagination"
       row-key="id"
+      size="middle"
+      :scroll="{ x: 1280 }"
       @change="doTableChange"
     >
       <template #bodyCell="{ column, text, record }">
@@ -26,11 +27,9 @@
               style="margin: -5px 0"
             />
             <template v-else-if="column.dataIndex === 'userAvatar'">
-              <a-image :src="record.userAvatar" :width="120" />
+              <a-image :src="record.userAvatar" :width="40" :height="40" class="user-avatar" />
             </template>
-            <template v-else>
-              {{ text }}
-            </template>
+            <span v-else class="ellipsis">{{ text }}</span>
           </div>
         </template>
         <template v-else-if="column.dataIndex === 'userRole'">
@@ -53,17 +52,17 @@
           {{ formatDateTime(record.createTime) }}
         </template>
         <template v-else-if="column.key === 'action'">
-          <div class="editable-row-operations">
-            <span v-if="editableData[record.id]">
+          <div class="row-operations">
+            <template v-if="editableData[record.id]">
               <a-typography-link @click="save(record.id)">保存</a-typography-link>
               <a-popconfirm title="确定取消编辑？" @confirm="cancel(record.id)">
                 <a>取消</a>
               </a-popconfirm>
-            </span>
-            <span v-else>
-              <a @click="edit(record.id)">编辑</a>
-              <a-button danger @click="doDelete(record.id)">删除</a-button>
-            </span>
+            </template>
+            <template v-else>
+              <a-typography-link @click="edit(record.id)">编辑</a-typography-link>
+              <a-button danger size="small" @click="doDelete(record.id)">删除</a-button>
+            </template>
           </div>
         </template>
       </template>
@@ -83,34 +82,46 @@ const columns = [
   {
     title: 'id',
     dataIndex: 'id',
+    width: 200,
+    ellipsis: true,
   },
   {
     title: '账号',
     dataIndex: 'userAccount',
+    width: 160,
+    ellipsis: true,
   },
   {
     title: '用户名',
     dataIndex: 'userName',
+    width: 140,
+    ellipsis: true,
   },
   {
     title: '头像',
     dataIndex: 'userAvatar',
+    width: 72,
   },
   {
     title: '简介',
     dataIndex: 'userProfile',
+    ellipsis: true,
   },
   {
     title: '用户角色',
     dataIndex: 'userRole',
+    width: 120,
   },
   {
     title: '创建时间',
     dataIndex: 'createTime',
+    width: 180,
   },
   {
     title: '操作',
     key: 'action',
+    width: 140,
+    fixed: 'right' as const,
   },
 ]
 
@@ -191,7 +202,24 @@ const doDelete = async (id: number) => {
 }
 </script>
 <style scoped>
-.editable-row-operations a {
-  margin-right: 8px;
+.user-avatar {
+  display: block;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-operations {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  white-space: nowrap;
 }
 </style>
