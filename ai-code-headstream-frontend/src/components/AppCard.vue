@@ -154,82 +154,81 @@ const saveRename = async () => {
       </div>
     </div>
     <div class="app-card__body">
-      <a-avatar
-        class="app-card__avatar"
-        :size="40"
-        :src="app.user?.userAvatar"
-        :style="{ backgroundColor: '#40a9ff' }"
-      >
-        {{ app.user?.userName?.slice(0, 1) ?? 'U' }}
-      </a-avatar>
-      <div class="app-card__info">
-        <div class="app-card__name-row">
-          <!-- 重命名状态：名称就地替换为输入框 -->
-          <template v-if="renaming">
-            <a-input
-              ref="renameInputRef"
-              v-model:value="renameValue"
-              class="app-card__rename-input"
-              size="small"
-              :maxlength="50"
-              placeholder="请输入应用名称"
-              @press-enter="saveRename"
-              @keydown.esc="cancelRename"
-            />
-            <a-button
-              type="primary"
-              size="small"
-              class="app-card__rename-btn"
-              :loading="saving"
-              @click="saveRename"
-            >
-              保存
-            </a-button>
-            <a-button size="small" class="app-card__rename-btn" :disabled="saving" @click="cancelRename">
-              取消
-            </a-button>
-          </template>
-          <template v-else>
-            <div class="app-card__name">{{ displayName }}</div>
-            <a-tag v-if="app.label" color="blue" class="app-card__label">{{ app.label }}</a-tag>
-          </template>
-        </div>
-        <div class="app-card__meta">
-          <span class="app-card__author-name">{{ app.user?.userName ?? authorFallback }}</span>
-          <span v-if="app.createTime" class="app-card__time">
-            {{ formatDate(app.createTime) }}
-          </span>
-          <span v-if="editable" class="app-card__more" @click.stop>
-            <a-dropdown :trigger="['click']">
-              <a-button type="text" class="app-card__more-btn" aria-label="更多操作">
-                <EllipsisOutlined />
-              </a-button>
-              <template #overlay>
-                <a-menu class="app-card__more-menu">
-                  <a-menu-item @click="startRename">
-                    <EditOutlined />
-                    重命名
-                  </a-menu-item>
-                  <a-menu-item class="app-card__more-menu-item--danger">
-                    <a-popconfirm
-                      title="确定删除该应用？"
-                      ok-text="确定"
-                      cancel-text="取消"
-                      @confirm="emit('delete', app)"
-                    >
-                      <span class="app-card__more-menu-trigger">
-                        <DeleteOutlined />
-                        删除
-                      </span>
-                    </a-popconfirm>
-                  </a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </span>
-        </div>
+      <div class="app-card__title-row">
+        <!-- 重命名状态：名称就地替换为输入框 -->
+        <template v-if="renaming">
+          <a-input
+            ref="renameInputRef"
+            v-model:value="renameValue"
+            class="app-card__rename-input"
+            size="small"
+            :maxlength="50"
+            placeholder="请输入应用名称"
+            @press-enter="saveRename"
+            @keydown.esc="cancelRename"
+          />
+          <a-button
+            type="primary"
+            size="small"
+            class="app-card__rename-btn"
+            :loading="saving"
+            @click="saveRename"
+          >
+            保存
+          </a-button>
+          <a-button size="small" class="app-card__rename-btn" :disabled="saving" @click="cancelRename">
+            取消
+          </a-button>
+        </template>
+        <template v-else>
+          <div class="app-card__name" :title="displayName">{{ displayName }}</div>
+          <a-tag v-if="app.label" color="blue" class="app-card__label">{{ app.label }}</a-tag>
+          <a-tag v-if="displayTag" :color="tagColor" class="app-card__tag">{{ displayTag }}</a-tag>
+        </template>
       </div>
-      <a-tag v-if="displayTag" :color="tagColor" class="app-card__tag">{{ displayTag }}</a-tag>
+      <div class="app-card__meta">
+        <a-avatar
+          class="app-card__avatar"
+          :size="22"
+          :src="app.user?.userAvatar"
+          :style="{ backgroundColor: '#40a9ff' }"
+        >
+          {{ app.user?.userName?.slice(0, 1) ?? 'U' }}
+        </a-avatar>
+        <span class="app-card__author-name">{{ app.user?.userName ?? authorFallback }}</span>
+        <span v-if="app.createTime" class="app-card__dot" aria-hidden="true">·</span>
+        <span v-if="app.createTime" class="app-card__time">
+          {{ formatDate(app.createTime) }}
+        </span>
+        <span v-if="editable" class="app-card__more" @click.stop>
+          <a-dropdown :trigger="['click']">
+            <a-button type="text" class="app-card__more-btn" aria-label="更多操作">
+              <EllipsisOutlined />
+            </a-button>
+            <template #overlay>
+              <a-menu class="app-card__more-menu">
+                <a-menu-item @click="startRename">
+                  <EditOutlined />
+                  重命名
+                </a-menu-item>
+                <a-menu-item class="app-card__more-menu-item--danger">
+                  <a-popconfirm
+                    title="确定删除该应用？"
+                    ok-text="确定"
+                    cancel-text="取消"
+                    @confirm="emit('delete', app)"
+                  >
+                    <span class="app-card__more-menu-trigger">
+                      <DeleteOutlined />
+                      删除
+                    </span>
+                  </a-popconfirm>
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </span>
+      </div>
     </div>
   </div>
 </template>
@@ -252,13 +251,9 @@ const saveRename = async () => {
 
 .app-card__cover {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 160px;
+  aspect-ratio: 16 / 10;
   overflow: hidden;
-  background-size: cover;
-  background-position: center;
+  background: #f5f5f5;
 }
 
 /* 悬停图片时显示遮罩与操作按钮 */
@@ -311,6 +306,8 @@ const saveRename = async () => {
 }
 
 .app-card__cover-img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -318,9 +315,9 @@ const saveRename = async () => {
 
 .app-card__body {
   display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 14px 16px 8px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 12px;
 }
 
 .app-card__more {
@@ -377,32 +374,32 @@ const saveRename = async () => {
   flex-shrink: 0;
 }
 
-.app-card__info {
-  flex: 1;
-  min-width: 0;
-}
-
-.app-card__name-row {
+.app-card__title-row {
   display: flex;
   gap: 6px;
   align-items: center;
   min-width: 0;
+  min-height: 24px;
 }
 
 .app-card__name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
+  line-height: 22px;
   color: rgba(0, 0, 0, 0.88);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.app-card__label {
+.app-card__label,
+.app-card__tag {
   flex-shrink: 0;
   margin-right: 0;
+  margin-inline-end: 0;
+  line-height: 20px;
 }
 
 .app-card__rename-input {
@@ -416,28 +413,27 @@ const saveRename = async () => {
 
 .app-card__meta {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   min-width: 0;
-  margin-top: 4px;
+  min-height: 24px;
 }
 
 .app-card__author-name {
+  min-width: 0;
   overflow: hidden;
   font-size: 13px;
+  line-height: 20px;
   color: rgba(0, 0, 0, 0.45);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.app-card__dot,
 .app-card__time {
   flex-shrink: 0;
   font-size: 13px;
+  line-height: 20px;
   color: rgba(0, 0, 0, 0.45);
-}
-
-.app-card__tag {
-  flex-shrink: 0;
-  margin-right: 0;
 }
 </style>
