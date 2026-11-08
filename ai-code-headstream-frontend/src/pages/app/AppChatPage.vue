@@ -18,6 +18,7 @@ import { formatDateTime, getAppPreviewUrl, getCodeGenTypeText } from '@/utils/ap
 import { downloadAppCodeZip } from '@/utils/appDownload.ts'
 import { MESSAGE_TYPE_USER } from '@/utils/chatHistory.ts'
 import { useChatHistory } from '@/composables/useChatHistory.ts'
+import { useVisualEdit } from '@/composables/useVisualEdit.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import ACCESS_ENUM from '@/access/accessEnum.ts'
 import ChatMessageContent from '@/components/ChatMessageContent.vue'
@@ -110,6 +111,39 @@ let requestSeq = 0
 const previewReady = ref(false)
 const previewUrl = ref('')
 const messagesRef = ref<HTMLElement | null>(null)
+
+// 可视化编辑：悬浮/选中元素、iframe 通信都在 useVisualEdit 里
+const {
+  editing,
+  selectedElement,
+  previewLoaded,
+  selectionTitle,
+  selectionDescription,
+  toggleEdit,
+  clearSelection,
+  exitEdit,
+  handlePreviewLoad,
+  markPreviewLoading,
+  composeMessage,
+} = useVisualEdit(previewReady)
+
+/** 编辑按钮：预览还没加载好时不能进入，但编辑过程中允许退出 */
+const editDisabled = computed(
+  () => !isOwner.value || streaming.value || (!editing.value && !previewLoaded.value),
+)
+
+const editTooltip = computed(() => {
+  if (!isOwner.value) {
+    return '无法在别人的作品下编辑哦~'
+  }
+  if (streaming.value) {
+    return '生成中，请稍后再编辑'
+  }
+  if (!previewLoaded.value && !editing.value) {
+    return '生成完成后可选择页面元素'
+  }
+  return editing.value ? '退出编辑模式' : '选择页面元素后再描述修改'
+})
 
 // 部署结果
 const deployUrl = ref('')
@@ -323,10 +357,17 @@ const showPreview = (delay = 800) => {
 }
 
 /**
- * 发送按钮
+ * 发送按钮。
+ * 编辑模式下会把选中元素写进提示词，发送后退出编辑并清掉选中。
  */
 const doSend = async () => {
-  await sendMessage(inputText.value)
+  const raw = inputText.value
+  if (!raw.trim() || streaming.value || !isOwner.value) {
+    return
+  }
+  const prompt = composeMessage(raw)
+  exitEdit()
+  await sendMessage(prompt)
 }
 
 /**
@@ -476,6 +517,7 @@ const initApp = async () => {
   const seq = ++initSeq
   // 切换应用时重置状态
   cancelStreaming()
+  exitEdit()
   liveMessages.value = []
   inputText.value = ''
   streaming.value = false
@@ -604,6 +646,16 @@ onBeforeUnmount(() => {
 
         <!-- 用户消息输入框 -->
         <div class="chat-page__input">
+          <a-alert
+            v-if="selectedElement"
+            class="chat-page__selection"
+            type="info"
+            show-icon
+            closable
+            :message="selectionTitle"
+            :description="selectionDescription || undefined"
+            @close="clearSelection"
+          />
           <a-tooltip :title="isOwner ? '' : '无法在别人的作品下对话哦~'">
             <div class="chat-page__textarea-wrap">
               <a-textarea
@@ -611,7 +663,11 @@ onBeforeUnmount(() => {
                 :auto-size="{ minRows: 3, maxRows: 8 }"
                 :disabled="streaming || !isOwner"
                 :placeholder="
-                  isOwner ? '描述越详细，页面越接近你的想法' : '无法在别人的作品下对话哦~'
+                  isOwner
+                    ? editing
+                      ? '描述想对选中元素做的修改'
+                      : '描述越详细，页面越接近你的想法'
+                    : '无法在别人的作品下对话哦~'
                 "
                 @press-enter="doSend"
               />
@@ -620,28 +676,52 @@ onBeforeUnmount(() => {
           <div class="chat-page__input-toolbar">
             <a-space :size="4">
               <tool-button :icon="PaperClipOutlined" label="上传" tooltip="上传附件功能暂未开放" />
-              <tool-button :icon="EditOutlined" label="编辑" />
               <tool-button :icon="BulbOutlined" label="优化" tooltip="提示词优化功能暂未开放" />
             </a-space>
-            <a-tooltip
-              :title="
-                !isOwner ? '无法在别人的作品下对话哦~' : inputText.trim() ? '发送' : '请先输入内容'
-              "
-            >
-              <span class="chat-page__tip">
-                <send-button
-                  :loading="streaming"
-                  :disabled="streaming || !inputText.trim() || !isOwner"
-                  @click="doSend"
-                />
-              </span>
-            </a-tooltip>
+            <div class="chat-page__send-group">
+              <a-tooltip :title="editTooltip">
+                <span class="chat-page__tip">
+                  <a-button
+                    type="text"
+                    class="chat-page__edit-btn"
+                    :class="{ 'chat-page__edit-btn--active': editing }"
+                    :disabled="editDisabled"
+                    :aria-pressed="editing"
+                    aria-label="编辑网页元素"
+                    @click="toggleEdit"
+                  >
+                    <EditOutlined />
+                    <span>{{ editing ? '编辑中' : '编辑' }}</span>
+                  </a-button>
+                </span>
+              </a-tooltip>
+              <a-tooltip
+                :title="
+                  !isOwner ? '无法在别人的作品下对话哦~' : inputText.trim() ? '发送' : '请先输入内容'
+                "
+              >
+                <span class="chat-page__tip">
+                  <send-button
+                    :loading="streaming"
+                    :disabled="streaming || !inputText.trim() || !isOwner"
+                    @click="doSend"
+                  />
+                </span>
+              </a-tooltip>
+            </div>
           </div>
         </div>
       </div>
 
       <!-- 右侧：网页展示区域 -->
-      <app-preview :url="previewUrl" :ready="previewReady" @open="openPreview" />
+      <app-preview
+        :url="previewUrl"
+        :ready="previewReady"
+        :editing="editing"
+        @open="openPreview"
+        @load="handlePreviewLoad"
+        @reload="markPreviewLoading"
+      />
     </div>
 
     <!-- 应用详情悬浮窗 -->
@@ -891,6 +971,19 @@ onBeforeUnmount(() => {
   border-top: 1px solid #f0f0f0;
 }
 
+.chat-page__selection {
+  margin-bottom: 8px;
+}
+
+.chat-page__selection :deep(.ant-alert-message),
+.chat-page__selection :deep(.ant-alert-description) {
+  word-break: break-all;
+}
+
+.chat-page__selection :deep(.ant-alert-description) {
+  white-space: pre-wrap;
+}
+
 .chat-page__textarea-wrap {
   display: block;
 }
@@ -904,6 +997,48 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   margin-top: 8px;
+}
+
+.chat-page__send-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chat-page__edit-btn {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  height: 32px;
+  padding: 0 8px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.65);
+  border-radius: 8px;
+}
+
+.chat-page__edit-btn :deep(.anticon) {
+  font-size: 14px;
+}
+
+.chat-page__edit-btn:not(:disabled):hover {
+  color: #1677ff !important;
+  background: rgba(22, 119, 255, 0.08) !important;
+}
+
+.chat-page__edit-btn--active:not(:disabled) {
+  color: #0958d9 !important;
+  background: #e6f4ff !important;
+}
+
+.chat-page__edit-btn:disabled,
+.chat-page__edit-btn.ant-btn-disabled {
+  color: rgba(0, 0, 0, 0.25) !important;
+  pointer-events: none;
+}
+
+.chat-page__edit-btn:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
 }
 
 @media (max-width: 992px) {

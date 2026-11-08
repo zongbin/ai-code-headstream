@@ -2,16 +2,27 @@
 import { ref, watch } from 'vue'
 import { ExportOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 
-const props = defineProps<{
-  /** 预览页面地址 */
-  url: string
-  /** 是否已生成完成（可预览） */
-  ready: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** 预览页面地址 */
+    url: string
+    /** 是否已生成完成（可预览） */
+    ready: boolean
+    /** 是否处于可视化编辑模式 */
+    editing?: boolean
+  }>(),
+  {
+    editing: false,
+  },
+)
 
 const emit = defineEmits<{
   /** 在新窗口打开 */
   (e: 'open'): void
+  /** iframe 加载完成，把元素交给对话页注入编辑脚本 */
+  (e: 'load', iframe: HTMLIFrameElement): void
+  /** iframe 即将重新加载，旧页面上的选中状态失效 */
+  (e: 'reload'): void
 }>()
 
 /** iframe 的 key，变化时强制重新加载 */
@@ -24,18 +35,37 @@ watch(
   },
 )
 
+/** 地址变化或手动刷新都会更换 iframe，通知对话页清掉旧的选中元素 */
+watch(version, () => {
+  emit('reload')
+})
+
 /**
  * 刷新预览
  */
 const refresh = () => {
   version.value++
 }
+
+/**
+ * 预览文档加载完成。
+ * 用事件目标而不是模板 ref，避免页面缓存时 load 先于 ref 赋值。
+ */
+const handleLoad = (event: Event) => {
+  const frame = event.target
+  if (frame instanceof HTMLIFrameElement) {
+    emit('load', frame)
+  }
+}
 </script>
 
 <template>
   <div class="app-preview">
     <div class="app-preview__header">
-      <span class="app-preview__title">网页效果</span>
+      <div class="app-preview__heading">
+        <span class="app-preview__title">网页效果</span>
+        <span v-if="editing" class="app-preview__mode">点击元素即可选中</span>
+      </div>
       <a-space :size="4">
         <a-tooltip :title="ready ? '刷新预览' : '生成完成后可刷新'">
           <span class="app-preview__tip">
@@ -65,11 +95,18 @@ const refresh = () => {
         </a-tooltip>
       </a-space>
     </div>
-    <div class="app-preview__body">
+    <div class="app-preview__body" :class="{ 'app-preview__body--editing': editing && ready }">
       <div v-if="!ready" class="app-preview__empty">
         <a-empty description="生成完成后在此预览网页效果" />
       </div>
-      <iframe v-else :key="version" class="app-preview__iframe" :src="url" title="网页预览"></iframe>
+      <iframe
+        v-else
+        :key="version"
+        class="app-preview__iframe"
+        :src="url"
+        title="网页预览"
+        @load="handleLoad"
+      ></iframe>
     </div>
   </div>
 </template>
@@ -90,9 +127,22 @@ const refresh = () => {
   border-bottom: 1px solid #f0f0f0;
 }
 
+.app-preview__heading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
 .app-preview__title {
   font-size: 14px;
   font-weight: 600;
+}
+
+.app-preview__mode {
+  font-size: 12px;
+  font-weight: 400;
+  color: #1677ff;
 }
 
 .app-preview__tip {
@@ -129,6 +179,10 @@ const refresh = () => {
   flex: 1;
   min-height: 0;
   background: #fafafa;
+}
+
+.app-preview__body--editing {
+  box-shadow: inset 0 0 0 2px #1677ff;
 }
 
 .app-preview__empty {
