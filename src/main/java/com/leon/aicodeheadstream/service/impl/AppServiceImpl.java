@@ -23,14 +23,11 @@ import com.leon.aicodeheadstream.model.enums.ChatHistoryMessageTypeEnum;
 import com.leon.aicodeheadstream.model.enums.CodeGenTypeEnum;
 import com.leon.aicodeheadstream.model.vo.AppVO;
 import com.leon.aicodeheadstream.model.vo.UserVO;
-import com.leon.aicodeheadstream.service.ChatHistoryService;
-import com.leon.aicodeheadstream.service.ScreenshotService;
-import com.leon.aicodeheadstream.service.UserService;
+import com.leon.aicodeheadstream.service.*;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.leon.aicodeheadstream.model.entity.App;
 import com.leon.aicodeheadstream.mapper.AppMapper;
-import com.leon.aicodeheadstream.service.AppService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -74,6 +71,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     private VueProjectBuilder vueProjectBuilder;
     @Resource
     private ScreenshotService screenshotService;
+
 
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser) {
@@ -162,6 +160,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         generateAppScreenshotAsync(appId, appDeployUrl);
         return appDeployUrl;
     }
+
+
 
     /**
      * 异步生成应用截图并更新封面

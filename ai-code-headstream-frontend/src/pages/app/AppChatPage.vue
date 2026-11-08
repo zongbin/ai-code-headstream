@@ -6,6 +6,7 @@ import {
   BulbOutlined,
   CheckOutlined,
   CopyOutlined,
+  DownloadOutlined,
   EditOutlined,
   InfoCircleOutlined,
   PaperClipOutlined,
@@ -20,6 +21,7 @@ import {
   listMyAppVoByPage,
 } from '@/api/appController.ts'
 import { formatDateTime, getAppPreviewUrl } from '@/utils/app.ts'
+import { downloadAppCodeZip } from '@/utils/appDownload.ts'
 import { MESSAGE_TYPE_USER } from '@/utils/chatHistory.ts'
 import { useChatHistory } from '@/composables/useChatHistory.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
@@ -133,6 +135,9 @@ const messagesRef = ref<HTMLElement | null>(null)
 const deployUrl = ref('')
 const deployVisible = ref(false)
 const deploying = ref(false)
+
+// 下载代码
+const downloading = ref(false)
 
 /**
  * 滚动到消息底部
@@ -365,6 +370,30 @@ const doSend = async () => {
 }
 
 /**
+ * 下载应用代码
+ *
+ * 后端直接返回 ZIP 流，成功时 Content-Type 为 application/zip，
+ * 文件名在 Content-Disposition 的 filename 中。
+ * 失败时全局异常处理仍返回 JSON，需要按响应头区分，不能当成压缩包保存。
+ */
+const doDownload = async () => {
+  if (!appId.value || downloading.value) {
+    return
+  }
+  downloading.value = true
+  try {
+    await downloadAppCodeZip(appId.value)
+    message.success('下载成功')
+  } catch (error) {
+    console.error('下载失败', error)
+    const detail = error instanceof Error ? error.message : ''
+    message.error(detail ? '下载失败，' + detail : '下载失败，请检查后端服务是否已启动')
+  } finally {
+    downloading.value = false
+  }
+}
+
+/**
  * 部署应用
  */
 const doDeploy = async () => {
@@ -561,6 +590,12 @@ onBeforeUnmount(() => {
             <InfoCircleOutlined />
           </template>
           应用详情
+        </a-button>
+        <a-button :loading="downloading" @click="doDownload">
+          <template #icon>
+            <DownloadOutlined />
+          </template>
+          下载代码
         </a-button>
         <a-button :loading="deploying" @click="doDeploy">
           <template #icon>
