@@ -7,7 +7,6 @@ import {
   CheckOutlined,
   CopyOutlined,
   DownloadOutlined,
-  EditOutlined,
   InfoCircleOutlined,
   PaperClipOutlined,
   RocketOutlined,
@@ -117,8 +116,7 @@ const {
   editing,
   selectedElement,
   previewLoaded,
-  selectionTitle,
-  selectionDescription,
+  selectionRows,
   toggleEdit,
   clearSelection,
   exitEdit,
@@ -646,16 +644,25 @@ onBeforeUnmount(() => {
 
         <!-- 用户消息输入框 -->
         <div class="chat-page__input">
-          <a-alert
-            v-if="selectedElement"
-            class="chat-page__selection"
-            type="info"
-            show-icon
-            closable
-            :message="selectionTitle"
-            :description="selectionDescription || undefined"
-            @close="clearSelection"
-          />
+          <!-- 选中的页面元素信息，字段与发给后端的提示词保持一致 -->
+          <div v-if="selectedElement" class="chat-page__selection">
+            <div class="chat-page__selection-head">
+              <span class="chat-page__selection-title">用户选中的页面元素</span>
+              <a-button type="text" size="small" @click="clearSelection">取消选中</a-button>
+            </div>
+            <div
+              v-for="row in selectionRows"
+              :key="row.label"
+              class="chat-page__selection-row"
+            >
+              <span class="chat-page__selection-label">{{ row.label }}</span>
+              <span
+                class="chat-page__selection-value"
+                :class="{ 'chat-page__selection-value--mono': row.mono }"
+                >{{ row.value }}</span
+              >
+            </div>
+          </div>
           <a-tooltip :title="isOwner ? '' : '无法在别人的作品下对话哦~'">
             <div class="chat-page__textarea-wrap">
               <a-textarea
@@ -679,22 +686,6 @@ onBeforeUnmount(() => {
               <tool-button :icon="BulbOutlined" label="优化" tooltip="提示词优化功能暂未开放" />
             </a-space>
             <div class="chat-page__send-group">
-              <a-tooltip :title="editTooltip">
-                <span class="chat-page__tip">
-                  <a-button
-                    type="text"
-                    class="chat-page__edit-btn"
-                    :class="{ 'chat-page__edit-btn--active': editing }"
-                    :disabled="editDisabled"
-                    :aria-pressed="editing"
-                    aria-label="编辑网页元素"
-                    @click="toggleEdit"
-                  >
-                    <EditOutlined />
-                    <span>{{ editing ? '编辑中' : '编辑' }}</span>
-                  </a-button>
-                </span>
-              </a-tooltip>
               <a-tooltip
                 :title="
                   !isOwner ? '无法在别人的作品下对话哦~' : inputText.trim() ? '发送' : '请先输入内容'
@@ -718,9 +709,12 @@ onBeforeUnmount(() => {
         :url="previewUrl"
         :ready="previewReady"
         :editing="editing"
+        :edit-disabled="editDisabled"
+        :edit-tooltip="editTooltip"
         @open="openPreview"
         @load="handlePreviewLoad"
         @reload="markPreviewLoading"
+        @toggle-edit="toggleEdit"
       />
     </div>
 
@@ -971,17 +965,54 @@ onBeforeUnmount(() => {
   border-top: 1px solid #f0f0f0;
 }
 
+/* 选中的页面元素信息卡片 */
 .chat-page__selection {
+  padding: 10px 12px;
   margin-bottom: 8px;
+  background: #f0f7ff;
+  border: 1px solid #91caff;
+  border-radius: 8px;
 }
 
-.chat-page__selection :deep(.ant-alert-message),
-.chat-page__selection :deep(.ant-alert-description) {
+.chat-page__selection-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.chat-page__selection-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0958d9;
+}
+
+.chat-page__selection-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-top: 4px;
+}
+
+.chat-page__selection-label {
+  flex-shrink: 0;
+  width: 56px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.chat-page__selection-value {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(0, 0, 0, 0.88);
   word-break: break-all;
 }
 
-.chat-page__selection :deep(.ant-alert-description) {
-  white-space: pre-wrap;
+.chat-page__selection-value--mono {
+  font-family: Consolas, Menlo, Monaco, 'Courier New', monospace;
+  font-size: 12px;
 }
 
 .chat-page__textarea-wrap {
@@ -1003,42 +1034,6 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 8px;
   align-items: center;
-}
-
-.chat-page__edit-btn {
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
-  height: 32px;
-  padding: 0 8px;
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.65);
-  border-radius: 8px;
-}
-
-.chat-page__edit-btn :deep(.anticon) {
-  font-size: 14px;
-}
-
-.chat-page__edit-btn:not(:disabled):hover {
-  color: #1677ff !important;
-  background: rgba(22, 119, 255, 0.08) !important;
-}
-
-.chat-page__edit-btn--active:not(:disabled) {
-  color: #0958d9 !important;
-  background: #e6f4ff !important;
-}
-
-.chat-page__edit-btn:disabled,
-.chat-page__edit-btn.ant-btn-disabled {
-  color: rgba(0, 0, 0, 0.25) !important;
-  pointer-events: none;
-}
-
-.chat-page__edit-btn:focus-visible {
-  outline: 2px solid #1677ff;
-  outline-offset: 2px;
 }
 
 @media (max-width: 992px) {

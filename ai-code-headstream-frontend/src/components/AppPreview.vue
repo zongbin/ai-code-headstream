@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { ExportOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { EditOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 
 const props = withDefaults(
   defineProps<{
@@ -10,9 +10,15 @@ const props = withDefaults(
     ready: boolean
     /** 是否处于可视化编辑模式 */
     editing?: boolean
+    /** 编辑按钮是否禁用 */
+    editDisabled?: boolean
+    /** 编辑按钮的提示文案 */
+    editTooltip?: string
   }>(),
   {
     editing: false,
+    editDisabled: false,
+    editTooltip: '',
   },
 )
 
@@ -23,6 +29,8 @@ const emit = defineEmits<{
   (e: 'load', iframe: HTMLIFrameElement): void
   /** iframe 即将重新加载，旧页面上的选中状态失效 */
   (e: 'reload'): void
+  /** 切换可视化编辑模式 */
+  (e: 'toggle-edit'): void
 }>()
 
 /** iframe 的 key，变化时强制重新加载 */
@@ -64,6 +72,23 @@ const handleLoad = (event: Event) => {
     <div class="app-preview__header">
       <div class="app-preview__heading">
         <span class="app-preview__title">网页效果</span>
+        <!-- 编辑按钮放在「网页效果」之后、「刷新预览」之前 -->
+        <a-tooltip :title="editTooltip">
+          <span class="app-preview__tip">
+            <a-button
+              type="text"
+              class="app-preview__edit-btn"
+              :class="{ 'app-preview__edit-btn--active': editing }"
+              :disabled="editDisabled"
+              :aria-pressed="editing"
+              aria-label="编辑网页元素"
+              @click="emit('toggle-edit')"
+            >
+              <EditOutlined />
+              <span>{{ editing ? '编辑中' : '编辑' }}</span>
+            </a-button>
+          </span>
+        </a-tooltip>
         <span v-if="editing" class="app-preview__mode">点击元素即可选中</span>
       </div>
       <a-space :size="4">
@@ -148,6 +173,43 @@ const handleLoad = (event: Event) => {
 .app-preview__tip {
   display: inline-flex;
   line-height: 0;
+}
+
+/* 编辑按钮：选中页面元素后再描述修改 */
+.app-preview__edit-btn {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  height: 32px;
+  padding: 0 8px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.65);
+  border-radius: 8px;
+}
+
+.app-preview__edit-btn :deep(.anticon) {
+  font-size: 14px;
+}
+
+.app-preview__edit-btn:not(:disabled):hover {
+  color: #1677ff !important;
+  background: rgba(22, 119, 255, 0.08) !important;
+}
+
+.app-preview__edit-btn--active:not(:disabled) {
+  color: #0958d9 !important;
+  background: #e6f4ff !important;
+}
+
+.app-preview__edit-btn:disabled,
+.app-preview__edit-btn.ant-btn-disabled {
+  color: rgba(0, 0, 0, 0.25) !important;
+  pointer-events: none;
+}
+
+.app-preview__edit-btn:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
 }
 
 .app-preview__icon-btn {

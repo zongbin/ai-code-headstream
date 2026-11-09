@@ -418,36 +418,44 @@ const normalizeElement = (value: unknown): VisualElement | null => {
 }
 
 /**
- * 输入框上方的选中提示标题
+ * 选中元素在界面上展示的一行
  */
-export const formatElementTitle = (element: VisualElement) => {
-  let name = element.tagName || '元素'
-  if (element.id) {
-    name += `#${element.id}`
-  } else if (element.className) {
-    const first = element.className.split(/\s+/).find(Boolean)
-    if (first) {
-      name += `.${first}`
-    }
-  }
-  return `已选中 ${name}`
+export interface VisualElementRow {
+  /** 字段名，如「标签」「选择器」 */
+  label: string
+  /** 字段值 */
+  value: string
+  /** 选择器、路径这类内容用等宽字体展示 */
+  mono?: boolean
 }
 
 /**
- * 输入框上方的选中提示详情
+ * 把选中元素整理成可展示的字段行
+ *
+ * 字段顺序与 buildMessageWithElement 生成的提示词保持一致，
+ * 让用户在界面上看到的就是即将发给后端的内容。
  */
-export const formatElementDescription = (element: VisualElement) => {
-  const lines: string[] = []
+export const formatElementRows = (element: VisualElement): VisualElementRow[] => {
+  const rows: VisualElementRow[] = []
+  if (element.tagName) {
+    rows.push({ label: '标签', value: element.tagName })
+  }
   if (element.selector) {
-    lines.push(`选择器：${element.selector}`)
+    rows.push({ label: '选择器', value: element.selector, mono: true })
+  }
+  if (element.id) {
+    rows.push({ label: 'id', value: element.id, mono: true })
+  }
+  if (element.className) {
+    rows.push({ label: 'class', value: element.className, mono: true })
   }
   if (element.text) {
-    lines.push(`文本：${element.text}`)
+    rows.push({ label: '文本', value: element.text })
   }
   if (element.pagePath) {
-    lines.push(`页面：${element.pagePath}`)
+    rows.push({ label: '页面路径', value: element.pagePath, mono: true })
   }
-  return lines.join('\n')
+  return rows
 }
 
 /**
@@ -497,11 +505,8 @@ export function useVisualEdit(previewReady: Ref<boolean>) {
   /** 当前预览 iframe */
   let currentIframe: HTMLIFrameElement | null = null
 
-  const selectionTitle = computed(() =>
-    selectedElement.value ? formatElementTitle(selectedElement.value) : '',
-  )
-  const selectionDescription = computed(() =>
-    selectedElement.value ? formatElementDescription(selectedElement.value) : '',
+  const selectionRows = computed<VisualElementRow[]>(() =>
+    selectedElement.value ? formatElementRows(selectedElement.value) : [],
   )
 
   /**
@@ -658,8 +663,7 @@ export function useVisualEdit(previewReady: Ref<boolean>) {
     editing,
     selectedElement,
     previewLoaded,
-    selectionTitle,
-    selectionDescription,
+    selectionRows,
     toggleEdit,
     clearSelection,
     exitEdit,
