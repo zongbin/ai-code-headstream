@@ -2,12 +2,13 @@ package com.leon.aicodeheadstream.ai;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.leon.aicodeheadstream.ai.tools.FileWriteTool;
+import com.leon.aicodeheadstream.ai.tools.*;
 import com.leon.aicodeheadstream.exception.BusinessException;
 import com.leon.aicodeheadstream.exception.ErrorCode;
 import com.leon.aicodeheadstream.model.enums.CodeGenTypeEnum;
 import com.leon.aicodeheadstream.service.ChatHistoryService;
 import dev.langchain4j.community.store.memory.chat.redis.RedisChatMemoryStore;
+import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
@@ -89,8 +90,18 @@ public class AiCodeGeneratorServiceFactory {
             case VUE_PROJECT -> AiServices.builder(AiCodeGeneratorService.class)
                     .streamingChatModel(reasoningStreamingChatModel)
                     .chatMemoryProvider(memoryId -> chatMemory)
-                    .tools(new FileWriteTool())
+                    .tools(
+                            new FileWriteTool(),
+                            new FileReadTool(),
+                            new FileModifyTool(),
+                            new FileDirReadTool(),
+                            new FileDeleteTool()
+                    )
+                    .hallucinatedToolNameStrategy(toolExecutionRequest -> ToolExecutionResultMessage.from(
+                            toolExecutionRequest, "Error: there is no tool called " + toolExecutionRequest.name()
+                    ))
                     .build();
+
             case HTML, MULTI_FILE -> AiServices.builder(AiCodeGeneratorService.class)
                     .chatModel(chatModel)
                     .streamingChatModel(openAiStreamingChatModel)
