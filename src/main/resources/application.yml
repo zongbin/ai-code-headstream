@@ -73,5 +73,6 @@ cos:
     region: ap-chongqing
     bucket: ${COS_CLIENT_BUCKET}
 
-pexels:
-  api-key: ${PEXELS_API_KEY}
+# Pexafy 图片搜索（Pexels/Unsplash/Pixabay 等免费图库的统一代理）
+pexafy:
+  api-key: ${PEXAFY_API_KEY}
