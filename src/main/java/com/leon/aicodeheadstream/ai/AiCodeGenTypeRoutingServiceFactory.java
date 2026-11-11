@@ -1,5 +1,6 @@
 package com.leon.aicodeheadstream.ai;
 
+import com.leon.aicodeheadstream.ai.guardrail.PromptSafetyInputGuardrail;
 import com.leon.aicodeheadstream.utils.SpringContextUtil;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
@@ -25,6 +26,8 @@ public class AiCodeGenTypeRoutingServiceFactory {
         ChatModel chatModel = SpringContextUtil.getBean("routingChatModelPrototype", ChatModel.class);
         return AiServices.builder(AiCodeGenTypeRoutingService.class)
                 .chatModel(chatModel)
+                // 添加输入护轨
+                .inputGuardrails(new PromptSafetyInputGuardrail())
                 .build();
     }
 
