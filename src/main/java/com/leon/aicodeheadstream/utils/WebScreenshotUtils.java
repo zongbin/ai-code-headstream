@@ -17,6 +17,7 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.File;
+import java.net.URI;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
@@ -83,7 +84,7 @@ public class WebScreenshotUtils {
             rootDir = FileUtil.mkdir(rootPath);
 
             // 3. 独立 Driver，状态天然隔离
-            driver = initChromeDriver(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+            driver = initChromeDriver(DEFAULT_WIDTH, DEFAULT_HEIGHT, webUrl);
 
             driver.get(webUrl);
             waitForPageLoad(driver);
@@ -153,14 +154,14 @@ public class WebScreenshotUtils {
      * 初始化 Chrome 浏览器驱动。
      * 注意：调用方负责 quit，本方法不缓存 Driver。
      */
-    private static WebDriver initChromeDriver(int width, int height) {
+    private static WebDriver initChromeDriver(int width, int height, String webUrl) {
         try {
             // 自动管理 ChromeDriver
             ensureDriverManagerReady();
             // 配置 Chrome 选项
             ChromeOptions options = new ChromeOptions();
             // 无头模式
-            options.addArguments("--headless");
+            options.addArguments("--headless=new");
             // 禁用GPU（在某些环境下避免问题）
             options.addArguments("--disable-gpu");
             // 禁用沙盒模式（Docker环境需要）
@@ -168,9 +169,21 @@ public class WebScreenshotUtils {
             // 禁用开发者shm使用
             options.addArguments("--disable-dev-shm-usage");
             // 设置窗口大小
+            options.addArguments(String.format("--screen-info={0,0 %dx%d}", width, height));
             options.addArguments(String.format("--window-size=%d,%d", width, height));
             // 禁用扩展
             options.addArguments("--disable-extensions");
+            // 忽略证书错误，并放行目标 HTTP 源，避免无头模式拦截明文地址导致截图空白
+            options.addArguments("--ignore-certificate-errors");
+            try {
+                URI uri = new URI(webUrl);
+                String origin = uri.getPort() > 0
+                        ? uri.getScheme() + "://" + uri.getHost() + ":" + uri.getPort()
+                        : uri.getScheme() + "://" + uri.getHost();
+                options.addArguments("--unsafely-treat-insecure-origin-as-secure=" + origin);
+            } catch (Exception ignore) {
+                // 解析失败则不加该参数
+            }
             // 设置用户代理
             options.addArguments("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
             // 创建驱动
