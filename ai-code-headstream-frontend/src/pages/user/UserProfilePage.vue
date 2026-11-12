@@ -4,7 +4,8 @@ import { message } from 'ant-design-vue'
 import type { FormInstance, UploadProps } from 'ant-design-vue'
 import { LoadingOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import { useRouter } from 'vue-router'
-import { getLoginUser, updateMyUser, uploadAvatar } from '@/api/userController.ts'
+import { getLoginUser, updateMyUser } from '@/api/userController.ts'
+import { uploadAvatarFile } from '@/utils/avatarUpload.ts'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import PageCard from '@/components/PageCard.vue'
 import FormActions from '@/components/FormActions.vue'
@@ -42,11 +43,9 @@ const beforeAvatarUpload: UploadProps['beforeUpload'] = (file) => {
 
 const handleAvatarUpload: UploadProps['customRequest'] = async (options) => {
   const { file, onSuccess, onError } = options
-  const formData = new FormData()
-  formData.append('file', file as File)
   uploading.value = true
   try {
-    const res = await uploadAvatar(formData)
+    const res = await uploadAvatarFile(file as File)
     if (res.data.code === 0 && res.data.data) {
       form.userAvatar = res.data.data
       message.success('头像已上传，请点击保存')
@@ -57,7 +56,8 @@ const handleAvatarUpload: UploadProps['customRequest'] = async (options) => {
     }
   } catch (error) {
     console.error('头像上传失败', error)
-    message.error('头像上传失败，请检查后端服务是否已启动')
+    const serverMessage = (error as any)?.response?.data?.message
+    message.error(serverMessage ? '头像上传失败，' + serverMessage : '头像上传失败，请检查网络与后端服务')
     onError?.(error as Error)
   } finally {
     uploading.value = false
