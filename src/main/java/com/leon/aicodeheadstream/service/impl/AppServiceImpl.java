@@ -25,6 +25,8 @@ import com.leon.aicodeheadstream.model.enums.ChatHistoryMessageTypeEnum;
 import com.leon.aicodeheadstream.model.enums.CodeGenTypeEnum;
 import com.leon.aicodeheadstream.model.vo.AppVO;
 import com.leon.aicodeheadstream.model.vo.UserVO;
+import com.leon.aicodeheadstream.monitor.MonitorContext;
+import com.leon.aicodeheadstream.monitor.MonitorContextHolder;
 import com.leon.aicodeheadstream.service.*;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
@@ -81,8 +83,6 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     private String deployHost;
 
 
-
-
     @Override
     public Flux<String> chatToGenCode(Long appId, String message, User loginUser) {
         // 1. 参数校验
@@ -103,10 +103,21 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         }
         // 5. 保存用户消息
         chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER, loginUser.getId());
-        // 6. 调用 AI 生成代码（流式）
+        // 6. 设置监控上下文
+        MonitorContextHolder.setContext(
+                MonitorContext.builder()
+                        .userId(loginUser.getId().toString())
+                        .appId(appId.toString())
+                        .build()
+        );
+        // 7. 调用 AI 生成代码（流式）
         Flux<String> codeStream = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, codeGenTypeEnum, appId);
-        // 7. 收集 AI 回复内容，流正常结束时保存 AI 消息，流异常结束时保存错误信息
-        return streamHandlerExecutor.doExecute(codeStream, chatHistoryService, appId, loginUser, codeGenTypeEnum);
+        // 8. 收集 AI 回复内容，流正常结束时保存 AI 消息，流异常结束时保存错误信息
+        return streamHandlerExecutor.doExecute(codeStream, chatHistoryService, appId, loginUser, codeGenTypeEnum)
+                .doFinally(signalType -> {
+                    // 流结束时清理（无论成功/失败/取消）
+                    MonitorContextHolder.clearContext();
+                });
     }
 
 

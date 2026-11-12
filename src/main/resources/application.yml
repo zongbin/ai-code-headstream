@@ -97,3 +97,13 @@ pexafy:
 
 code:
   deploy-host: http://localhost
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+
