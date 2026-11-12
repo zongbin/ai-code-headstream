@@ -51,7 +51,7 @@ langchain4j:
     chat-model:
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       api-key: ${DEV_ALI_API_KEY}
-      model-name: qwen3.8-2.4t-a95b
+      model-name: deepseek-v4.1-flash-1017
       log-requests: true
       log-responses: true
       max-tokens: 8192
@@ -60,7 +60,7 @@ langchain4j:
     streaming-chat-model:
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       api-key: ${DEV_ALI_API_KEY}
-      model-name: qwen3.8-2.4t-a95b
+      model-name: deepseek-v4.1-flash-1017
       max-tokens: 8192
       log-requests: true
       log-responses: true
@@ -68,7 +68,7 @@ langchain4j:
     reasoning-streaming-chat-model:
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       api-key: ${DEV_ALI_API_KEY}
-      model-name: qwen3.8-2.4t-a95b
+      model-name: deepseek-v4.1-flash-1017
       max-tokens: 32768
       temperature: 0.1
       log-requests: true
@@ -77,7 +77,7 @@ langchain4j:
     routing-chat-model:
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
       api-key: ${DEV_ALI_API_KEY}
-      model-name: qwen3.8-2.4t-a95b
+      model-name: qwen-flash
       log-requests: true
       log-responses: true
 
@@ -94,3 +94,6 @@ cos:
 # Pexafy 图片搜索（Pexels/Unsplash/Pixabay 等免费图库的统一代理）
 pexafy:
   api-key: ${PEXAFY_API_KEY}
+
+code:
+  deploy-host: http://localhost
