@@ -1,14 +1,11 @@
 package com.leon.aicodeheadstream.core.handler;
 
-import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.leon.aicodeheadstream.ai.model.message.*;
 import com.leon.aicodeheadstream.ai.tools.BaseTool;
 import com.leon.aicodeheadstream.ai.tools.ToolManager;
-import com.leon.aicodeheadstream.constant.AppConstant;
-import com.leon.aicodeheadstream.core.builder.VueProjectBuilder;
 import com.leon.aicodeheadstream.model.entity.User;
 import com.leon.aicodeheadstream.model.enums.ChatHistoryMessageTypeEnum;
 import com.leon.aicodeheadstream.service.ChatHistoryService;
