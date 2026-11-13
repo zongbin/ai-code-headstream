@@ -36,6 +36,7 @@ import com.leon.aicodeheadstream.model.entity.App;
 import com.leon.aicodeheadstream.mapper.AppMapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.dubbo.config.annotation.DubboReference;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -67,8 +68,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     private static final Set<String> SORTABLE_FIELDS = Set.of(
             "id", "appName", "priority", "visible", "deployedTime", "editTime", "createTime", "updateTime");
 
-    @Resource
-    @Lazy
+    @DubboReference
     private InnerUserService userService;
     @Resource
     private AiCodeGeneratorFacade aiCodeGeneratorFacade;
@@ -78,8 +78,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     private StreamHandlerExecutor streamHandlerExecutor;
     @Resource
     private VueProjectBuilder vueProjectBuilder;
-    @Resource
-    @Lazy
+    @DubboReference
     private InnerScreenshotService screenshotService;
     @Resource
     private AiCodeGenTypeRoutingServiceFactory aiCodeGenTypeRoutingServiceFactory;

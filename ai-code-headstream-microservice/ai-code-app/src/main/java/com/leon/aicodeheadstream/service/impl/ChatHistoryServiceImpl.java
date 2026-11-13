@@ -26,6 +26,7 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
@@ -65,8 +66,7 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
      */
     private static final Set<String> SORTABLE_FIELDS = Set.of("createTime", "updateTime", "id");
 
-    @Resource
-    @Lazy
+    @DubboReference
     private InnerUserService userService;
 
     /**
