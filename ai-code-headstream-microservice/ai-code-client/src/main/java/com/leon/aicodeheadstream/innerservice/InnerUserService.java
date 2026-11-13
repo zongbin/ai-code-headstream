@@ -1,5 +1,6 @@
 package com.leon.aicodeheadstream.innerservice;
 
+import com.leon.aicodeheadstream.constant.UserConstant;
 import com.leon.aicodeheadstream.exception.BusinessException;
 import com.leon.aicodeheadstream.exception.ErrorCode;
 import com.leon.aicodeheadstream.model.entity.User;
@@ -19,7 +20,7 @@ public interface InnerUserService {
 
     // 静态方法，避免跨服务调用
     static User getLoginUser(HttpServletRequest request) {
-        Object userObj = request.getSession().getAttribute("user_login");
+        Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
         User currentUser = (User) userObj;
         if (currentUser == null || currentUser.getId() == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);

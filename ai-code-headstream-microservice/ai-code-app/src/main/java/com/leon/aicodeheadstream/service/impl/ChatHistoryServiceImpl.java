@@ -7,6 +7,7 @@ import com.leon.aicodeheadstream.constant.UserConstant;
 import com.leon.aicodeheadstream.exception.BusinessException;
 import com.leon.aicodeheadstream.exception.ErrorCode;
 import com.leon.aicodeheadstream.exception.ThrowUtils;
+import com.leon.aicodeheadstream.innerservice.InnerUserService;
 import com.leon.aicodeheadstream.mapper.AppMapper;
 import com.leon.aicodeheadstream.mapper.ChatHistoryMapper;
 import com.leon.aicodeheadstream.model.dto.chat.ChatHistoryAppQueryRequest;
@@ -18,7 +19,6 @@ import com.leon.aicodeheadstream.model.enums.ChatHistoryMessageTypeEnum;
 import com.leon.aicodeheadstream.model.vo.ChatHistoryPageVO;
 import com.leon.aicodeheadstream.model.vo.ChatHistoryVO;
 import com.leon.aicodeheadstream.service.ChatHistoryService;
-import com.leon.aicodeheadstream.service.UserService;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import dev.langchain4j.data.message.AiMessage;
@@ -26,6 +26,7 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -65,7 +66,8 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
     private static final Set<String> SORTABLE_FIELDS = Set.of("createTime", "updateTime", "id");
 
     @Resource
-    private UserService userService;
+    @Lazy
+    private InnerUserService userService;
 
     /**
      * 应用 Mapper（直接使用 Mapper 而非 AppService，避免与 AppService 形成循环依赖）
@@ -252,10 +254,10 @@ public class ChatHistoryServiceImpl extends ServiceImpl<ChatHistoryMapper, ChatH
         // 按用户账号筛选：先查账号对应的用户，再按用户 id 过滤
         // （账号不存在时用不可能匹配的 id，保证查不到任何记录，而不是忽略条件查出全部）
         String userAccount = chatHistoryQueryRequest.getUserAccount();
-        if (StrUtil.isNotBlank(userAccount)) {
-            User user = userService.getOne(QueryWrapper.create().eq("userAccount", userAccount).limit(1));
-            queryWrapper.eq("userId", user == null ? -1L : user.getId());
-        }
+//        if (StrUtil.isNotBlank(userAccount)) {
+//            User user = userService.getOne(QueryWrapper.create().eq("userAccount", userAccount).limit(1));
+//            queryWrapper.eq("userId", user == null ? -1L : user.getId());
+//        }
         String sortField = chatHistoryQueryRequest.getSortField();
         String sortOrder = chatHistoryQueryRequest.getSortOrder();
         if (StrUtil.isNotBlank(sortField) && SORTABLE_FIELDS.contains(sortField)) {

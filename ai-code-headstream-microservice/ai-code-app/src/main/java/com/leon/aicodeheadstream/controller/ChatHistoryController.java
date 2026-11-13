@@ -6,13 +6,13 @@ import com.leon.aicodeheadstream.common.ResultUtils;
 import com.leon.aicodeheadstream.constant.UserConstant;
 import com.leon.aicodeheadstream.exception.ErrorCode;
 import com.leon.aicodeheadstream.exception.ThrowUtils;
+import com.leon.aicodeheadstream.innerservice.InnerUserService;
 import com.leon.aicodeheadstream.model.dto.chat.ChatHistoryAppQueryRequest;
 import com.leon.aicodeheadstream.model.dto.chat.ChatHistoryQueryRequest;
 import com.leon.aicodeheadstream.model.entity.ChatHistory;
 import com.leon.aicodeheadstream.model.entity.User;
 import com.leon.aicodeheadstream.model.vo.ChatHistoryVO;
 import com.leon.aicodeheadstream.service.ChatHistoryService;
-import com.leon.aicodeheadstream.service.UserService;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.annotation.Resource;
@@ -37,9 +37,6 @@ public class ChatHistoryController {
     @Resource
     private ChatHistoryService chatHistoryService;
 
-    @Resource
-    private UserService userService;
-
     /**
      * 分页查看某个应用的对话历史（游标分页，仅应用创建者和管理员可见）
      *
@@ -55,7 +52,7 @@ public class ChatHistoryController {
     public BaseResponse<Page<ChatHistoryVO>> listAppChatHistory(ChatHistoryAppQueryRequest chatHistoryAppQueryRequest,
                                                                 HttpServletRequest request) {
         // 获取当前登录用户
-        User loginUser = userService.getLoginUser(request);
+        User loginUser = InnerUserService.getLoginUser(request);
         Page<ChatHistoryVO> chatHistoryPage = chatHistoryService.getAppChatHistory(chatHistoryAppQueryRequest, loginUser);
         return ResultUtils.success(chatHistoryPage);
     }

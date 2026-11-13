@@ -15,6 +15,8 @@ import com.leon.aicodeheadstream.core.handler.StreamHandlerExecutor;
 import com.leon.aicodeheadstream.exception.BusinessException;
 import com.leon.aicodeheadstream.exception.ErrorCode;
 import com.leon.aicodeheadstream.exception.ThrowUtils;
+import com.leon.aicodeheadstream.innerservice.InnerScreenshotService;
+import com.leon.aicodeheadstream.innerservice.InnerUserService;
 import com.leon.aicodeheadstream.model.dto.app.AppAddRequest;
 import com.leon.aicodeheadstream.model.dto.app.AppAdminUpdateRequest;
 import com.leon.aicodeheadstream.model.dto.app.AppQueryRequest;
@@ -36,6 +38,7 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -65,7 +68,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             "id", "appName", "priority", "visible", "deployedTime", "editTime", "createTime", "updateTime");
 
     @Resource
-    private UserService userService;
+    @Lazy
+    private InnerUserService userService;
     @Resource
     private AiCodeGeneratorFacade aiCodeGeneratorFacade;
     @Resource
@@ -75,7 +79,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
     @Resource
     private VueProjectBuilder vueProjectBuilder;
     @Resource
-    private ScreenshotService screenshotService;
+    @Lazy
+    private InnerScreenshotService screenshotService;
     @Resource
     private AiCodeGenTypeRoutingServiceFactory aiCodeGenTypeRoutingServiceFactory;
 

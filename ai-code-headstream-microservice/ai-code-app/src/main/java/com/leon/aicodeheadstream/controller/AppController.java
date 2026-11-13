@@ -10,6 +10,7 @@ import com.leon.aicodeheadstream.constant.UserConstant;
 import com.leon.aicodeheadstream.exception.BusinessException;
 import com.leon.aicodeheadstream.exception.ErrorCode;
 import com.leon.aicodeheadstream.exception.ThrowUtils;
+import com.leon.aicodeheadstream.innerservice.InnerUserService;
 import com.leon.aicodeheadstream.model.dto.DeleteRequest;
 import com.leon.aicodeheadstream.model.dto.app.*;
 import com.leon.aicodeheadstream.model.entity.App;
@@ -19,7 +20,6 @@ import com.leon.aicodeheadstream.ratelimit.annotation.RateLimit;
 import com.leon.aicodeheadstream.ratelimit.enums.RateLimitType;
 import com.leon.aicodeheadstream.service.AppService;
 import com.leon.aicodeheadstream.service.ProjectDownloadService;
-import com.leon.aicodeheadstream.service.UserService;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import jakarta.annotation.Resource;
@@ -56,9 +56,6 @@ public class AppController {
     private AppService appService;
 
     @Resource
-    private UserService userService;
-
-    @Resource
     private ProjectDownloadService projectDownloadService;
 
 
@@ -79,7 +76,7 @@ public class AppController {
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID无效");
         ThrowUtils.throwIf(StrUtil.isBlank(message), ErrorCode.PARAMS_ERROR, "用户消息不能为空");
         // 获取当前登录用户
-        User loginUser = userService.getLoginUser(request);
+        User loginUser = InnerUserService.getLoginUser(request);
         // 调用服务生成代码（流式）
         Flux<String> content = appService.chatToGenCode(appId, message, loginUser);
         return content
@@ -109,7 +106,7 @@ public class AppController {
         Long appId = appDeployRequest.getAppId();
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用 ID 不能为空");
         // 获取当前登录用户
-        User loginUser = userService.getLoginUser(request);
+        User loginUser = InnerUserService.getLoginUser(request);
         // 调用服务部署应用
         String deployUrl = appService.deployApp(appId, loginUser);
         return ResultUtils.success(deployUrl);
@@ -132,7 +129,7 @@ public class AppController {
         App app = appService.getById(appId);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR, "应用不存在");
         // 3. 权限校验：只有应用创建者可以下载代码
-        User loginUser = userService.getLoginUser(request);
+        User loginUser = InnerUserService.getLoginUser(request);
         if (!app.getUserId().equals(loginUser.getId())) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR, "无权限下载该应用代码");
         }
@@ -160,7 +157,7 @@ public class AppController {
     @PostMapping("/add")
     public BaseResponse<Long> addApp(@RequestBody AppAddRequest appAddRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(appAddRequest == null, ErrorCode.PARAMS_ERROR);
-        User loginUser = userService.getLoginUser(request);
+        User loginUser = InnerUserService.getLoginUser(request);
         long appId = appService.createApp(appAddRequest, loginUser);
         return ResultUtils.success(appId);
     }
@@ -177,7 +174,7 @@ public class AppController {
         if (appUpdateRequest == null || appUpdateRequest.getId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        User loginUser = userService.getLoginUser(request);
+        User loginUser = InnerUserService.getLoginUser(request);
         boolean result = appService.updateMyApp(appUpdateRequest, loginUser);
         return ResultUtils.success(result);
     }
@@ -194,7 +191,7 @@ public class AppController {
         if (deleteRequest == null || deleteRequest.getId() == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        User loginUser = userService.getLoginUser(request);
+        User loginUser = InnerUserService.getLoginUser(request);
         boolean result = appService.deleteMyApp(deleteRequest.getId(), loginUser);
         return ResultUtils.success(result);
     }
@@ -214,7 +211,7 @@ public class AppController {
         App app = appService.getById(id);
         ThrowUtils.throwIf(app == null, ErrorCode.NOT_FOUND_ERROR);
         // 可见性校验
-        User loginUser = userService.getLoginUser(request);
+        User loginUser = InnerUserService.getLoginUser(request);
         appService.checkAppVisible(app, loginUser);
         return ResultUtils.success(appService.getAppVO(app));
     }
@@ -230,7 +227,7 @@ public class AppController {
     public BaseResponse<Page<AppVO>> listMyAppVOByPage(@RequestBody AppQueryRequest appQueryRequest,
                                                        HttpServletRequest request) {
         ThrowUtils.throwIf(appQueryRequest == null, ErrorCode.PARAMS_ERROR);
-        User loginUser = userService.getLoginUser(request);
+        User loginUser = InnerUserService.getLoginUser(request);
         long pageSize = appQueryRequest.getPageSize();
         ThrowUtils.throwIf(pageSize > AppConstant.MAX_PAGE_SIZE, ErrorCode.PARAMS_ERROR, "每页最多查询 20 个应用");
         long pageNum = appQueryRequest.getPageNum();
