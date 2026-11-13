@@ -9,7 +9,7 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <modules>
-        <module>ai-code-cmmon</module>
+        <module>ai-code-common</module>
         <module>ai-code-model</module>
         <module>ai-code-client</module>
         <module>ai-code-user</module>
