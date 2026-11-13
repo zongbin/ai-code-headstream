@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: ai-code-user
+  # session
+  session:
+    store-type: redis
+    # 30 days expire
+    timeout: 2592000
+  # mysql
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/ai_code_headstream
+    username: root
+    password: root
+  # redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      password:
+      ttl: 3600
+server:
+  port: 8124
+  servlet:
+    context-path: /api
+    # 30 days expire
+    session:
+      cookie:
+        max-age: 2592000
+
+# 添加 COS 对象存储配置（需要从腾讯云获取）
+cos:
+  client:
+    host: ${COS_CLIENT_HOST}
+    secretId: ${COS_CLIENT_SECRE_ID}
+    secretKey: ${COS_CLIENT_SECRE_KEY}
+    region: ap-chongqing
+    bucket: ${COS_CLIENT_BUCKET}
+
+# springdoc-openapi
+springdoc:
+  group-configs:
+    - group: 'default'
+      packages-to-scan: com.leon.aicodeheadstream.controller
+# knife4j
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
