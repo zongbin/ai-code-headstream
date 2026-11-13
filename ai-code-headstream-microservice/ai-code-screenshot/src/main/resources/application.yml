@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: ai-code-screenshot
+server:
+  port: 8127
+  servlet:
+    context-path: /api
+# 添加 COS 对象存储配置（需要从腾讯云获取）
+cos:
+  client:
+    host: ${COS_CLIENT_HOST}
+    secretId: ${COS_CLIENT_SECRE_ID}
+    secretKey: ${COS_CLIENT_SECRE_KEY}
+    region: ap-chongqing
+    bucket: ${COS_CLIENT_BUCKET}
