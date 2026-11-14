@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: ai-code-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: ai-code-user
+              uri: http://localhost:8124
+              predicates:
+                - Path=/api/user/**
+            - id: ai-code-app
+              uri: http://localhost:8125
+              predicates:
+                - Path=/api/app/**,/api/chatHistory/**,/api/static/**
+
+server:
+  port: 8081
+
+
+
+logging:
+  level:
+    org.springframework.cloud.gateway: TRACE
